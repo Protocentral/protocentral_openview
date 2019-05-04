@@ -192,7 +192,6 @@ public void setup()
   
   makeGUI();
   
-  
   plotECG = new GPlot(this);
   plotECG.setPos(0,50);
   plotECG.setDim(width, (totalPlotsHeight/3)-10);
