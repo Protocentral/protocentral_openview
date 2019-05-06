@@ -446,18 +446,18 @@ public void makeGUI()
 */
       lblMQTT = cp5.addTextlabel("lblMQTT")
       .setText("MQTT OFF | ")
-      .setPosition(5,height-25)
+      .setPosition(20,height-25)
       .setColorValue(color(255,255,255))
-      .setFont(createFont("Verdana",20));
+      .setFont(createFont("Verdana",16));
       
       lblMQTTStatus = cp5.addTextlabel("lblMQTTStatus")
       .setText("Connected to: none")
       .setPosition(150,height-25)
       .setColorValue(color(255,255,255))
-      .setFont(createFont("Verdana",20));
+      .setFont(createFont("Verdana",16));
     
      cp5.addButton("logo")
-     .setPosition(10,10)
+     .setPosition(20,10)
      .setImages(loadImage("protocentral.png"), loadImage("protocentral.png"), loadImage("protocentral.png"))
      .updateSize();
           
