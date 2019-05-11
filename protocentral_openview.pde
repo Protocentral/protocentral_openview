@@ -77,24 +77,26 @@ private static int CES_CMDIF_PKT_OVERHEAD = 5;
 int ecs_rx_state = 0;                                        // To check the state of the packet
 int CES_Pkt_Len;                                             // To store the Packet Length Deatils
 int CES_Pkt_Pos_Counter, CES_Data_Counter;                   // Packet and data counter
-int CES_Pkt_PktType;                                         // To store the Packet Type
+
+int CES_Pkt_PktType;         // To store the Packet Type
 char CES_Pkt_Data_Counter[] = new char[1000];                // Buffer to store the data from the packet
 char CES_Pkt_ECG_Counter[] = new char[4];                    // Buffer to hold ECG data
-char CES_Pkt_Resp_Counter[] = new char[4];                   // Respiration Buffer
+char ces_pkt_red_counter[] = new char[4];                   // Respiration Buffer
 char CES_Pkt_SpO2_Counter_RED[] = new char[4];               // Buffer for SpO2 RED
-char CES_Pkt_SpO2_Counter_IR[] = new char[4];                // Buffer for SpO2 IR
-int pSize = 500;                                            // Total Size of the buffer
+char ces_pkt_ir_counter[] = new char[4];                // Buffer for SpO2 IR
+
+int pSize = 300;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
 float time = 0;                                              // X axis increment variable
 
 // Buffer for ecg,spo2,respiration,and average of thos values
 float[] xdata = new float[pSize];
 float[] ecgdata = new float[pSize];
-float[] respdata = new float[pSize];
+float[] reddata = new float[pSize];
 float[] bpmArray = new float[pSize];
 float[] ecg_avg = new float[pSize];                          
 float[] resp_avg = new float[pSize];
-float[] spo2data = new float[pSize];
+float[] irdata = new float[pSize];
 float[] spo2Array_IR = new float[pSize];
 float[] spo2Array_RED = new float[pSize];
 float[] rpmArray = new float[pSize];
@@ -103,7 +105,7 @@ float[] ppgArray = new float[pSize];
 /************** Graph Related Variables **********************/
 
 double maxe, mine, maxr, minr, maxs, mins;             // To Calculate the Minimum and Maximum of the Buffer
-double ecg, resp, spo2_ir, spo2_red, spo2, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
+double ecg, red, spo2_ir, spo2_red, ir, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
 double respirationVoltage=20;                          // To store the current respiration value
 boolean startPlot = false;                             // Conditional Variable to start and stop the plot
 
@@ -238,38 +240,12 @@ public void setup()
     time = time + 1;
     xdata[i]=time;
     ecgdata[i] = 0;
-    respdata[i] = 0;
+    reddata[i] = 0;
     ppgArray[i] = 0;
   }
   time = 0;
-  
-  mqtt_post_start_time=0;
-  mqtt_post_stop_time=5000;
 }
 
-void setupMQTT() 
-{
-    mqtt_server = cp5.get(Textfield.class,"MQTT Server Name").getText();
-    mqtt_username = cp5.get(Textfield.class,"MQTT username").getText();
-    mqtt_password = cp5.get(Textfield.class,"MQTT password").getText();
-      
-    client = new MQTTClient(this);
-    String mqtt_connect_string = "mqtt://"+ mqtt_username +":"+mqtt_password+"@"+mqtt_server;
-    println(mqtt_connect_string);
-    try 
-    {
-      client.connect(mqtt_connect_string);
-      lblMQTTStatus.setText("Connected to:"+mqtt_server);
-    } catch (Exception e)
-    {
-        lblMQTTStatus.setText("Failed to connect");
-    }
-}
-
-void messageReceived(String topic, byte[] payload) 
-{
-  println("MQTT message recd: " + topic + " - " + new String(payload));
-}
 
 public void makeGUI()
 {  
@@ -305,98 +281,7 @@ public void makeGUI()
       }
      } 
      );
-     
-     /*
-     cp5.addButton("MQTT ON/OFF")
-     .setValue(0)
-     .setPosition(width-330,10)
-     .setSize(100,40)
-     .setColorBackground(color(255,0,0))
-     .setFont(createFont("Arial",15))
-     .addCallback(new CallbackListener() {
-      public void controlEvent(CallbackEvent event) {
-        if (event.getAction() == ControlP5.ACTION_RELEASED) 
-        {
-            MQTT_ONOFF();
-        }
-      }
-     } 
-     );
-     */
-    
-    Group grpMQTTSettings = cp5.addGroup("MQTT Settings")
-                .setBackgroundColor(color(0,0,255))
-                //.setSize(200,100)
-                .setBarHeight(40)
-                //.setSize(200,40)
-                .setFont(createFont("Arial",15))
-                .setBackgroundHeight(300)
-                .setVisible(false)
-                ;
-        
-          cp5.addTextfield("MQTT Server Name")
-           .setPosition(10,5)
-           .setSize(200,40)
-           //.setFont(font)
-           .setFont(createFont("Arial",15))
-           .setFocus(true)
-           .setColor(color(255,255,255))
-           .setText(default_mqtt_server)
-           .moveTo(grpMQTTSettings);
            
-          cp5.addTextfield("MQTT username")
-           .setPosition(10,70)
-           .setSize(200,40)
-           //.setFont(font)
-           .setFont(createFont("Arial",15))
-           .setFocus(true)
-           .setColor(color(255,255,255))
-           .setText(default_mqtt_username)
-           .moveTo(grpMQTTSettings);
-           
-          cp5.addTextfield("MQTT password")
-           .setPosition(10,140)
-           .setSize(200,40)
-           //.setFont(font)
-           .setFont(createFont("Arial",15))
-           .setFocus(true)
-           .setColor(color(255,255,255))
-           .setText(default_mqtt_password)
-           .moveTo(grpMQTTSettings); 
-           
-         cp5.addTextfield("Feedname")
-           .setPosition(10,210)
-           .setSize(200,40)
-           //.setFont(font)
-           .setFont(createFont("Arial",15))
-           .setFocus(true)
-           .setColor(color(255,255,255))
-           .moveTo(grpMQTTSettings); 
-           
-           cp5.addButton("Save")
-             .setValue(0)
-             .setPosition(110,255)
-             .setSize(100,40)
-             .setFont(createFont("Arial",15))
-             .moveTo(grpMQTTSettings) 
-             .addCallback(new CallbackListener() {
-              public void controlEvent(CallbackEvent event) {
-                if (event.getAction() == ControlP5.ACTION_RELEASED) 
-                {
-                  accordion.close();
-                  //CloseApp();
-                  //cp5.remove(event.getController().getName());
-                }
-              }
-             } 
-             );
-                 
-    accordion = cp5.addAccordion("acc")
-                 .setPosition(width-555,10)
-                 .setWidth(220)
-                 .setHeight(40)                       
-                 .addItem(grpMQTTSettings);
-                     
       cp5.addScrollableList("Select Serial port")
          .setPosition(250, 5)
          .setSize(250, 100)
@@ -416,66 +301,18 @@ public void makeGUI()
             }
          } 
        );     
-    
-  
+
 /*
        lblHR = cp5.addTextlabel("lblHR")
       .setText("Heartrate: --- bpm")
       .setPosition(width-550,50)
       .setColorValue(color(255,255,255))
       .setFont(createFont("Arial",40));
-
-      lblSPO2 = cp5.addTextlabel("lblSPO2")
-      .setText("SpO2: --- %")
-      .setPosition(width-550,(totalPlotsHeight/3+10))
-      .setColorValue(color(255,255,255))
-      .setFont(createFont("Arial",40));
- 
-
-      lblRR = cp5.addTextlabel("lblRR")
-      .setText("Respiration: --- bpm")
-      .setPosition(width-550,(totalPlotsHeight/3+totalPlotsHeight/3+10))
-      .setColorValue(color(255,255,255))
-      .setFont(createFont("Arial",40));
-    
-      lblTemp = cp5.addTextlabel("lblTemp")
-      .setText("Temperature: --- C")
-      .setPosition((width/3)*2,height-60)
-      .setColorValue(color(255,255,255))
-      .setFont(createFont("Verdana",40));
 */
-      lblMQTT = cp5.addTextlabel("lblMQTT")
-      .setText("MQTT OFF | ")
-      .setPosition(20,height-25)
-      .setColorValue(color(255,255,255))
-      .setFont(createFont("Verdana",16));
-      
-      lblMQTTStatus = cp5.addTextlabel("lblMQTTStatus")
-      .setText("Connected to: none")
-      .setPosition(150,height-25)
-      .setColorValue(color(255,255,255))
-      .setFont(createFont("Verdana",16));
-    
      cp5.addButton("logo")
      .setPosition(20,10)
      .setImages(loadImage("protocentral.png"), loadImage("protocentral.png"), loadImage("protocentral.png"))
-     .updateSize();
-          
-}
-
-void MQTT_ONOFF()
-{
-    if(false==mqtt_on)
-    {
-        mqtt_on=true;
-        lblMQTT.setText("MQTT ON");
-        setupMQTT();
-    }
-    else
-    {
-        mqtt_on=false;
-        lblMQTT.setText("MQTT OFF");
-    }
+     .updateSize();         
 }
 
 public void draw() 
@@ -492,8 +329,8 @@ public void draw()
     for(int i=0; i<nPoints1;i++)
     {    
       pointsECG.add(i,ecgdata[i]);
-      pointsPPG.add(i,spo2data[i]); 
-      pointsResp.add(i,respdata[i]);  
+      pointsPPG.add(i,irdata[i]); 
+      pointsResp.add(i,reddata[i]);  
     }
   } 
   else                                     // Default value is set
@@ -558,7 +395,7 @@ public void RecordData()
       bufferedWriter = new BufferedWriter(output);
       bufferedWriter.write(date.toString()+"");
       bufferedWriter.newLine();
-      bufferedWriter.write("TimeStamp,ECG,SpO2,Respiration");
+      bufferedWriter.write("TimeStamp,ECG,PPG");
       bufferedWriter.newLine();
     }
   }
@@ -635,96 +472,36 @@ void ecsProcessData(char rxch)
         CES_Pkt_ECG_Counter[0] = CES_Pkt_Data_Counter[0];
         CES_Pkt_ECG_Counter[1] = CES_Pkt_Data_Counter[1];
 
+        ces_pkt_red_counter[0] = CES_Pkt_Data_Counter[2];
+        ces_pkt_red_counter[1] = CES_Pkt_Data_Counter[3];
 
-        CES_Pkt_Resp_Counter[0] = CES_Pkt_Data_Counter[2];
-        CES_Pkt_Resp_Counter[1] = CES_Pkt_Data_Counter[3];
-
-        CES_Pkt_SpO2_Counter_IR[0] = CES_Pkt_Data_Counter[4];
-        CES_Pkt_SpO2_Counter_IR[1] = CES_Pkt_Data_Counter[5];
-        CES_Pkt_SpO2_Counter_IR[2] = CES_Pkt_Data_Counter[6];
-        CES_Pkt_SpO2_Counter_IR[3] = CES_Pkt_Data_Counter[7];
-
-        CES_Pkt_SpO2_Counter_RED[0] = CES_Pkt_Data_Counter[8];
-        CES_Pkt_SpO2_Counter_RED[1] = CES_Pkt_Data_Counter[9];
-        CES_Pkt_SpO2_Counter_RED[2] = CES_Pkt_Data_Counter[10];
-        CES_Pkt_SpO2_Counter_RED[3] = CES_Pkt_Data_Counter[11];
-
-        float Temp_Value = (float) ((int) CES_Pkt_Data_Counter[12]| CES_Pkt_Data_Counter[13]<<8)/100;                // Temperature
-        // BP Value Systolic and Diastolic
-        
-        int global_RespirationRate = (int) (CES_Pkt_Data_Counter[14]);
-         int global_spo2= (int) (CES_Pkt_Data_Counter[15]);
-         int global_HeartRate = (int) (CES_Pkt_Data_Counter[16]);
-         
-        int BP_Value_Sys = (int) CES_Pkt_Data_Counter[17];
-        int BP_Value_Dia = (int) CES_Pkt_Data_Counter[18];
-        
-        int leadstatus =  CES_Pkt_Data_Counter[19];
-        leadstatus &= 0x01; 
-        if(leadstatus== 0x01) ECG_leadOff = true;  
-        else ECG_leadOff = false;
-        
-         leadstatus =  CES_Pkt_Data_Counter[19];
-        leadstatus &= 0x02; 
-        if(leadstatus == 0x02) spo2_leadOff = true;
-        else spo2_leadOff = false;
-        
+        ces_pkt_ir_counter[0] = CES_Pkt_Data_Counter[4];
+        ces_pkt_ir_counter[1] = CES_Pkt_Data_Counter[5];
 
         int data1 = CES_Pkt_ECG_Counter[0] | CES_Pkt_ECG_Counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
         data1 <<= 16;
         data1 >>= 16;
-        ecg = (double) data1/(Math.pow(10, 3));
+        ecg=data1;
+   
+        int data2 = ces_pkt_red_counter[0] | ces_pkt_red_counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+        //data2 <<= 16;
+        //data2 >>= 16;
+        red = data2;
 
-        int data2 = CES_Pkt_Resp_Counter[0] | CES_Pkt_Resp_Counter[1] <<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
-        data2 <<= 16;
-        data2 >>= 16;
-        resp = (double) data2/(Math.pow(10, 3));
-
-        int data3 = reversePacket(CES_Pkt_SpO2_Counter_IR, CES_Pkt_SpO2_Counter_IR.length-1);
-        spo2_ir = (double) data3;
-
-        int data4 = reversePacket(CES_Pkt_SpO2_Counter_RED, CES_Pkt_SpO2_Counter_RED.length-1);
-        spo2_red = (double) data4;
-
-        ecg_avg[arrayIndex] = (float)ecg;
-        ecgAvg = averageValue(ecg_avg);
-        ecg = (ecg_avg[arrayIndex] - ecgAvg);
-
-        spo2Array_IR[arrayIndex] = (float)spo2_ir;
-        spo2Array_RED[arrayIndex] = (float)spo2_red;
-        redAvg = averageValue(spo2Array_RED);
-        irAvg = averageValue(spo2Array_IR);
-        spo2 = (spo2Array_IR[arrayIndex] - irAvg);
-
-        resp_avg[arrayIndex]= (float)resp;
-        resAvg =  averageValue(resp_avg);
-        resp = (resp_avg[arrayIndex] - resAvg);
+        int data3 = ces_pkt_ir_counter[0] | ces_pkt_ir_counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+        //data2 <<= 16;
+        //data2 >>= 16;
+        ir = data3;
 
         time = time+1;
         xdata[arrayIndex] = time;
 
         ecgdata[arrayIndex] = (float)ecg;
-        respdata[arrayIndex]= (float)resp;
-        spo2data[arrayIndex] = (float)spo2;
-        bpmArray[arrayIndex] = (float)ecg;
-        rpmArray[arrayIndex] = (float)resp;
-        ppgArray[arrayIndex] = (float)spo2;
+        reddata[arrayIndex]= (float)red;
+        irdata[arrayIndex] = (float)ir;
 
-       
-    
-       
         arrayIndex++;
-        updateCounter++;
-
-        if(updateCounter==100)
-        {
-          if (startPlot)
-          {
-           
-            
-          }
-          updateCounter=0;
-        }
+       
         
         if (arrayIndex == pSize)
         {  
@@ -732,33 +509,13 @@ void ecsProcessData(char rxch)
           time = 0;
         }       
 
-        // If record button is clicked, then logging is done
-
-        if(mqtt_on==true)
-        {
-          if(millis()-mqtt_post_stop_time >= mqtt_post_start_time)
-          {
-            mqtt_hr=global_HeartRate;
-            mqtt_rr=global_RespirationRate;
-            mqtt_temp=global_temp;
-            mqtt_spo2=global_spo2;
-            
-            thread("publishMQTT");
-            mqtt_post_start_time=millis();
-          }
-          else
-          {
-            //mqtt_post_start_time
-          }
-        }
-        
         if (logging == true)
         {
           try 
           {
             date = new Date();
             dateFormat = new SimpleDateFormat("HH:mm:ss");
-            bufferedWriter.write(dateFormat.format(date)+","+ecg+","+spo2+","+resp);
+            bufferedWriter.write(dateFormat.format(date)+","+ecg+","+red+","+ir);
             bufferedWriter.newLine();
           }
           catch(IOException e) 
@@ -778,34 +535,4 @@ void ecsProcessData(char rxch)
   default:
     break;
   }
-}
-
-void publishMQTT()
-{
-   client.publish(mqtt_username+"/feeds/healthypi.heartrate", ""+mqtt_hr);
-   client.publish(mqtt_username+"/feeds/healthypi.respiration", ""+mqtt_rr);
-   client.publish(mqtt_username+"/feeds/healthypi.spo2", ""+mqtt_spo2);
-   client.publish(mqtt_username+"/feeds/healthypi.temperature", ""+mqtt_temp);       
-}
-
-/*********************************************** Recursive Function To Reverse The data *********************************************************/
-
-public int reversePacket(char DataRcvPacket[], int n)
-{
-  if (n == 0)
-    return (int) DataRcvPacket[n]<<(n*8);
-  else
-    return (DataRcvPacket[n]<<(n*8))| reversePacket(DataRcvPacket, n-1);
-}
-
-/*************** Function to Calculate Average *********************/
-double averageValue(float dataArray[])
-{
-
-  float total = 0;
-  for (int i=0; i<dataArray.length; i++)
-  {
-    total = total + dataArray[i];
-  }
-  return total/dataArray.length;
 }
