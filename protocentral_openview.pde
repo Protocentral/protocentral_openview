@@ -14,7 +14,6 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////
 
-import g4p_controls.*;                       // Processing GUI Library to create buttons, dropdown,etc.,
 import processing.serial.*;                  // Serial Library
 import grafica.*;
 
@@ -36,16 +35,10 @@ import java.text.SimpleDateFormat;
 // General Java Package
 import java.math.*;
 import controlP5.*;
-import mqtt.*;
-import org.eclipse.paho.client.mqttv3.MqttException;
 
-MQTTClient client;
+
 ControlP5 cp5;
 
-String default_mqtt_server = "io.adafruit.com";
-String default_mqtt_username = "akw";
-String default_mqtt_password = "4746bf5b83de4d5db4e4c03ad8b304cd";
-int mqtt_post_interval=5000; //millisecond
 
 Textlabel lblHR;
 Textlabel lblSPO2;
@@ -158,21 +151,6 @@ int global_test=0;
 boolean ECG_leadOff,spo2_leadOff;
 boolean ShowWarning = true;
 boolean ShowWarningSpo2=true;
-
-boolean mqtt_on=false;
-int mqtt_post_start_time=0;
-int mqtt_post_stop_time=0;
-
-int mqtt_hr=0;
-int mqtt_rr=0;
-int mqtt_spo2=0;
-float mqtt_temp=0;
-
-Accordion accordion;
-
-String mqtt_server;
-String mqtt_username;
-String mqtt_password;
 
 public void setup() 
 {  
