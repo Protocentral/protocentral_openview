@@ -4,6 +4,8 @@ ProtoCentral OpenView is a graphical interface for MacOS/Linux/Windows for plott
 
 ![OpenView Animated](images/openview_anim.gif)
 
+For compiled binaries, please check the **releases** tab above.
+
 **Development environment:** Processing 3(https://processing.org/)
 **Compatibility:** MacOS/Linux/Windows
 
