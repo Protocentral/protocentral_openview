@@ -261,8 +261,8 @@ public void makeGUI()
      );
            
       cp5.addScrollableList("Select Serial port")
-         .setPosition(250, 5)
-         .setSize(250, 100)
+         .setPosition(20, 5)
+         .setSize(200, 100)
          .setFont(createFont("Arial",12))
          .setBarHeight(50)
          .setItemHeight(40)
@@ -278,7 +278,29 @@ public void makeGUI()
               }
             }
          } 
-       );     
+       );    
+      cp5.addScrollableList("Select your board")
+         .setPosition(250, 5)
+         .setSize(250, 100)
+         .setFont(createFont("Arial",12))
+         .setBarHeight(50)
+         .setItemHeight(40)
+         .addItem("MAX86150 Breakout","max86150")
+         .addItem("AFE4490 Breakout/Shield","afe4490")
+         .addItem("MAX86150 Breakout","max86150")
+         .addItem("MAX86150 Breakout","max86150")
+         .setType(ScrollableList.DROPDOWN) // currently supported DROPDOWN and LIST
+         .addCallback(new CallbackListener() 
+         {
+            public void controlEvent(CallbackEvent event) 
+            {
+              if (event.getAction() == ControlP5.ACTION_RELEASED) 
+              {
+                startSerial(event.getController().getLabel(),115200);
+              }
+            }
+         } 
+       );    
 
 /*
        lblHR = cp5.addTextlabel("lblHR")
@@ -288,7 +310,7 @@ public void makeGUI()
       .setFont(createFont("Arial",40));
 */
      cp5.addButton("logo")
-     .setPosition(20,10)
+     .setPosition(20,height-40)
      .setImages(loadImage("protocentral.png"), loadImage("protocentral.png"), loadImage("protocentral.png"))
      .updateSize();         
 }
