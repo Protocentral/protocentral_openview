@@ -84,12 +84,12 @@ float time = 0;                                              // X axis increment
 
 // Buffer for ecg,spo2,respiration,and average of thos values
 float[] xdata = new float[pSize];
-float[] ecgdata = new float[pSize];
-float[] reddata = new float[pSize];
+float[] ch1Data = new float[pSize];
+float[] ch2Data = new float[pSize];
 float[] bpmArray = new float[pSize];
 float[] ecg_avg = new float[pSize];                          
 float[] resp_avg = new float[pSize];
-float[] irdata = new float[pSize];
+float[] ch3Data = new float[pSize];
 float[] spo2Array_IR = new float[pSize];
 float[] spo2Array_RED = new float[pSize];
 float[] rpmArray = new float[pSize];
@@ -98,13 +98,13 @@ float[] ppgArray = new float[pSize];
 /************** Graph Related Variables **********************/
 
 double maxe, mine, maxr, minr, maxs, mins;             // To Calculate the Minimum and Maximum of the Buffer
-double ecg, red, spo2_ir, spo2_red, ir, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
+double ch1, ch2, spo2_ir, spo2_red, ch3, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
 double respirationVoltage=20;                          // To store the current respiration value
 boolean startPlot = false;                             // Conditional Variable to start and stop the plot
 
-GPlot plotPPG;
-GPlot plotECG;
-GPlot plotResp;
+GPlot plot2;
+GPlot plot1;
+GPlot plot3;
 
 int step = 0;
 int stepsPerCycle = 100;
@@ -172,32 +172,32 @@ public void setup()
   makeGUI();
   surface.setTitle("Protocentral OpenView");
   
-  plotECG = new GPlot(this);
-  plotECG.setPos(20,60);
-  plotECG.setDim(width-40, (totalPlotsHeight/3)-10);
-  plotECG.setBgColor(0);
-  plotECG.setBoxBgColor(0);
-  plotECG.setLineColor(color(0, 255, 0));
-  plotECG.setLineWidth(3);
-  plotECG.setMar(0,0,0,0);
+  plot1 = new GPlot(this);
+  plot1.setPos(20,60);
+  plot1.setDim(width-40, (totalPlotsHeight/3)-10);
+  plot1.setBgColor(0);
+  plot1.setBoxBgColor(0);
+  plot1.setLineColor(color(0, 255, 0));
+  plot1.setLineWidth(3);
+  plot1.setMar(0,0,0,0);
   
-  plotPPG = new GPlot(this);
-  plotPPG.setPos(20,(totalPlotsHeight/3+60));
-  plotPPG.setDim(width-40, (totalPlotsHeight/3)-10);
-  plotPPG.setBgColor(0);
-  plotPPG.setBoxBgColor(0);
-  plotPPG.setLineColor(color(255, 255, 0));
-  plotPPG.setLineWidth(3);
-  plotPPG.setMar(0,0,0,0);
+  plot2 = new GPlot(this);
+  plot2.setPos(20,(totalPlotsHeight/3+60));
+  plot2.setDim(width-40, (totalPlotsHeight/3)-10);
+  plot2.setBgColor(0);
+  plot2.setBoxBgColor(0);
+  plot2.setLineColor(color(255, 255, 0));
+  plot2.setLineWidth(3);
+  plot2.setMar(0,0,0,0);
 
-  plotResp = new GPlot(this);
-  plotResp.setPos(20,(totalPlotsHeight/3+totalPlotsHeight/3+60));
-  plotResp.setDim(width-40, (totalPlotsHeight/3)-10);
-  plotResp.setBgColor(0);
-  plotResp.setBoxBgColor(0);
-  plotResp.setLineColor(color(0,0,255));
-  plotResp.setLineWidth(3);
-  plotResp.setMar(0,0,0,0);
+  plot3 = new GPlot(this);
+  plot3.setPos(20,(totalPlotsHeight/3+totalPlotsHeight/3+60));
+  plot3.setDim(width-40, (totalPlotsHeight/3)-10);
+  plot3.setBgColor(0);
+  plot3.setBoxBgColor(0);
+  plot3.setLineColor(color(0,0,255));
+  plot3.setLineWidth(3);
+  plot3.setMar(0,0,0,0);
 
   for (int i = 0; i < nPoints1; i++) 
   {
@@ -206,9 +206,9 @@ public void setup()
     pointsResp.add(i,0); 
   }
 
-  plotECG.setPoints(pointsECG);
-  plotPPG.setPoints(pointsPPG);
-  plotResp.setPoints(pointsPPG);
+  plot1.setPoints(pointsECG);
+  plot2.setPoints(pointsPPG);
+  plot3.setPoints(pointsPPG);
 
 
   /*******  Initializing zero for buffer ****************/
@@ -217,8 +217,8 @@ public void setup()
   {
     time = time + 1;
     xdata[i]=time;
-    ecgdata[i] = 0;
-    reddata[i] = 0;
+    ch1Data[i] = 0;
+    ch2Data[i] = 0;
     ppgArray[i] = 0;
   }
   time = 0;
@@ -228,25 +228,30 @@ public void setup()
 public void makeGUI()
 {  
    cp5 = new ControlP5(this);
-   cp5.addButton("Close")
+   cp5.addButton("Start")
      .setValue(0)
-     .setPosition(width-110,10)
+     .setPosition(width-225,10)
      .setSize(100,40)
      .setFont(createFont("Arial",15))
+     .setColorBackground(color(0,255,0))
+     .setColorLabel(color(0,0,0))
+     
      .addCallback(new CallbackListener() {
       public void controlEvent(CallbackEvent event) {
         if (event.getAction() == ControlP5.ACTION_RELEASED) 
         {
-          CloseApp();
+          //startSerial(event.getController().getLabel(),115200);
+          //startSerial(event.getController().getLabel(),115200);
+           //selectedPort=cp5.get(ScrollableList.class, "portName").getItem("portName").get("value");
+           print(selectedPort);
           //cp5.remove(event.getController().getName());
         }
       }
-     } 
-     );
+     });
   
    cp5.addButton("Record")
      .setValue(0)
-     .setPosition(width-225,10)
+     .setPosition(width-110,10)
      .setSize(100,40)
      .setFont(createFont("Arial",15))
      .addCallback(new CallbackListener() {
@@ -260,14 +265,17 @@ public void makeGUI()
      } 
      );
            
-      cp5.addScrollableList("Select Serial port")
-         .setPosition(20, 5)
-         .setSize(200, 100)
+      cp5.addScrollableList("portName")
+         .setPosition(20, 10)
+         .setLabel("Select Port")
+         .setSize(250, 400)
          .setFont(createFont("Arial",12))
-         .setBarHeight(50)
+         .setBarHeight(40)
+         .setOpen(false)
          .setItemHeight(40)
          .addItems(port.list())
          .setType(ScrollableList.DROPDOWN) // currently supported DROPDOWN and LIST
+         /*
          .addCallback(new CallbackListener() 
          {
             public void controlEvent(CallbackEvent event) 
@@ -277,30 +285,20 @@ public void makeGUI()
                 startSerial(event.getController().getLabel(),115200);
               }
             }
-         } 
-       );    
-      cp5.addScrollableList("Select your board")
-         .setPosition(250, 5)
-         .setSize(250, 100)
+         } */
+       ;    
+      cp5.addScrollableList("board")
+         .setPosition(275, 10)
+         .setSize(200, 400)
          .setFont(createFont("Arial",12))
-         .setBarHeight(50)
+         .setBarHeight(40)
          .setItemHeight(40)
+         .setOpen(false)
          .addItem("MAX86150 Breakout","max86150")
          .addItem("AFE4490 Breakout/Shield","afe4490")
-         .addItem("MAX86150 Breakout","max86150")
-         .addItem("MAX86150 Breakout","max86150")
-         .setType(ScrollableList.DROPDOWN) // currently supported DROPDOWN and LIST
-         .addCallback(new CallbackListener() 
-         {
-            public void controlEvent(CallbackEvent event) 
-            {
-              if (event.getAction() == ControlP5.ACTION_RELEASED) 
-              {
-                startSerial(event.getController().getLabel(),115200);
-              }
-            }
-         } 
-       );    
+         .addItem("MAX30003 Breakout","max30003")
+         .addItem("ADS1292R Breakout/Shield","ads1292r")
+         .setType(ScrollableList.DROPDOWN);    
 
 /*
        lblHR = cp5.addTextlabel("lblHR")
@@ -315,46 +313,83 @@ public void makeGUI()
      .updateSize();         
 }
 
+void board(int n) {
+  /* request the selected item based on index n */
+  println(n, cp5.get(ScrollableList.class, "board").getItem(n));
+  
+  /* here an item is stored as a Map  with the following key-value pairs:
+   * name, the given name of the item
+   * text, the given text of the item by default the same as name
+   * value, the given value of the item, can be changed by using .getItem(n).put("value", "abc"); a value here is of type Object therefore can be anything
+   * color, the given color of the item, how to change, see below
+   * view, a customizable view, is of type CDrawable 
+   */
+  
+   CColor c = new CColor();
+  c.setBackground(color(255,0,0));
+  cp5.get(ScrollableList.class, "board").getItem(n).put("color", c);
+  
+}
+
+void portName(int n) {
+  /* request the selected item based on index n */
+  println(n, cp5.get(ScrollableList.class, "portName").getItem(n));
+  
+  /* here an item is stored as a Map  with the following key-value pairs:
+   * name, the given name of the item
+   * text, the given text of the item by default the same as name
+   * value, the given value of the item, can be changed by using .getItem(n).put("value", "abc"); a value here is of type Object therefore can be anything
+   * color, the given color of the item, how to change, see below
+   * view, a customizable view, is of type CDrawable 
+   */
+  
+   CColor c = new CColor();
+  c.setBackground(color(255,0,0));
+  cp5.get(ScrollableList.class, "portName").getItem(n).put("color", c);
+  
+}
+
 public void draw() 
 {
   //background(0);
   background(19,75,102);
 
-  GPointsArray pointsPPG = new GPointsArray(nPoints1);
-  GPointsArray pointsECG = new GPointsArray(nPoints1);
-  GPointsArray pointsResp = new GPointsArray(nPoints1);
+  GPointsArray pointsPlot1 = new GPointsArray(nPoints1);
+  GPointsArray pointsPlot2 = new GPointsArray(nPoints1);
+  
+  GPointsArray pointsPlot3 = new GPointsArray(nPoints1);
 
   if (startPlot)                             // If the condition is true, then the plotting is done
   {
     for(int i=0; i<nPoints1;i++)
     {    
-      pointsECG.add(i,ecgdata[i]);
-      pointsPPG.add(i,irdata[i]); 
-      pointsResp.add(i,reddata[i]);  
+      pointsPlot1.add(i,ch1Data[i]);
+      pointsPlot2.add(i,ch3Data[i]); 
+      pointsPlot3.add(i,ch2Data[i]);  
     }
   } 
   else                                     // Default value is set
   {
   }
 
-  plotECG.setPoints(pointsECG);
-  plotPPG.setPoints(pointsPPG);
-  plotResp.setPoints(pointsResp);
+  plot1.setPoints(pointsPlot1);
+  plot2.setPoints(pointsPlot2);
+  plot3.setPoints(pointsPlot3);
   
-  plotECG.beginDraw();
-  plotECG.drawBackground();
-  plotECG.drawLines();
-  plotECG.endDraw();
+  plot1.beginDraw();
+  plot1.drawBackground();
+  plot1.drawLines();
+  plot1.endDraw();
   
-  plotPPG.beginDraw();
-  plotPPG.drawBackground();
-  plotPPG.drawLines();
-  plotPPG.endDraw();
+  plot2.beginDraw();
+  plot2.drawBackground();
+  plot2.drawLines();
+  plot2.endDraw();
 
-  plotResp.beginDraw();
-  plotResp.drawBackground();
-  plotResp.drawLines();
-  plotResp.endDraw();
+  plot3.beginDraw();
+  plot3.drawBackground();
+  plot3.drawLines();
+  plot3.endDraw();
 }
 
 public void CloseApp() 
@@ -465,7 +500,7 @@ void ecsProcessData(char rxch)
       {
         CES_Pkt_Data_Counter[CES_Data_Counter++] = (char) (rxch);          // Buffer that assigns the data separated from the packet
       }
-    } else  //All  and data received
+    } else  //All data received
     {
       if (rxch==CES_CMDIF_PKT_STOP)
       {     
@@ -481,24 +516,24 @@ void ecsProcessData(char rxch)
         int data1 = CES_Pkt_ECG_Counter[0] | CES_Pkt_ECG_Counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
         data1 <<= 16;
         data1 >>= 16;
-        ecg=data1;
+        ch1=data1;
    
         int data2 = ces_pkt_red_counter[0] | ces_pkt_red_counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
         //data2 <<= 16;
         //data2 >>= 16;
-        red = data2;
+        ch2 = data2;
 
         int data3 = ces_pkt_ir_counter[0] | ces_pkt_ir_counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
         //data2 <<= 16;
         //data2 >>= 16;
-        ir = data3;
+        ch3 = data3;
 
         time = time+1;
         xdata[arrayIndex] = time;
 
-        ecgdata[arrayIndex] = (float)ecg;
-        reddata[arrayIndex]= (float)red;
-        irdata[arrayIndex] = (float)ir;
+        ch1Data[arrayIndex] = (float)ch1;
+        ch2Data[arrayIndex]= (float)ch2;
+        ch3Data[arrayIndex] = (float)ch3;
 
         arrayIndex++;
        
@@ -515,7 +550,7 @@ void ecsProcessData(char rxch)
           {
             date = new Date();
             dateFormat = new SimpleDateFormat("HH:mm:ss");
-            bufferedWriter.write(dateFormat.format(date)+","+ecg+","+red+","+ir);
+            bufferedWriter.write(dateFormat.format(date)+","+ch1+","+ch2+","+ch3);
             bufferedWriter.newLine();
           }
           catch(IOException e) 
