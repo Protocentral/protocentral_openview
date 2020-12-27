@@ -126,7 +126,9 @@ DateFormat dateFormat;
 Serial port = null;                                     // Oject for communicating via serial port
 String[] comList;                                       // Buffer that holds the serial ports that are paired to the laptop
 char inString = '\0';                                   // To receive the bytes from the packet
+
 String selectedPort;                                    // Holds the selected port number
+String selectedBoard;
 
 /************** Logo Related Variables **********************/
 
@@ -152,6 +154,8 @@ boolean ECG_leadOff,spo2_leadOff;
 boolean ShowWarning = true;
 boolean ShowWarningSpo2=true;
 
+Textlabel lblSelectedDevice;
+
 public void setup() 
 {  
   
@@ -160,7 +164,7 @@ public void setup()
   GPointsArray pointsECG = new GPointsArray(nPoints1);
   GPointsArray pointsResp = new GPointsArray(nPoints1);
 
-  size(800, 600, JAVA2D);
+  size(1024, 768, JAVA2D);
   //fullScreen();
    
   // ch
@@ -310,12 +314,18 @@ public void makeGUI()
      cp5.addButton("logo")
      .setPosition(20,height-40)
      .setImages(loadImage("protocentral.png"), loadImage("protocentral.png"), loadImage("protocentral.png"))
-     .updateSize();         
+     .updateSize();     
+     
+     lblSelectedDevice = cp5.addTextlabel("lblSelectedDevice")
+      .setText("--")
+      .setPosition(250,height-25)
+      .setColorValue(color(255,255,255))
+      .setFont(createFont("verdana",16));
 }
 
 void board(int n) {
   /* request the selected item based on index n */
-  println(n, cp5.get(ScrollableList.class, "board").getItem(n));
+    println(n, cp5.get(ScrollableList.class, "board").getItem(n));
   
   /* here an item is stored as a Map  with the following key-value pairs:
    * name, the given name of the item
@@ -325,10 +335,21 @@ void board(int n) {
    * view, a customizable view, is of type CDrawable 
    */
   
-   CColor c = new CColor();
-  c.setBackground(color(255,0,0));
-  cp5.get(ScrollableList.class, "board").getItem(n).put("color", c);
+    CColor c = new CColor();
+    c.setBackground(color(255,0,0));
+    cp5.get(ScrollableList.class, "board").getItem(n).put("color", c);
+    Map itemMap = cp5.get(ScrollableList.class, "board").getItem(n);
+    selectedBoard = itemMap.get("value").toString();
+    print(selectedBoard);
+    updateDeviceStatus();
+    
+    //selectedBoard = cp5.get(ScrollableList.class, "board").getItem(n).getString();
   
+}
+
+void updateDeviceStatus()
+{
+    lblSelectedDevice.setText("Selected device: " + selectedBoard + " on " + selectedPort);
 }
 
 void portName(int n) {
@@ -346,6 +367,11 @@ void portName(int n) {
    CColor c = new CColor();
   c.setBackground(color(255,0,0));
   cp5.get(ScrollableList.class, "portName").getItem(n).put("color", c);
+  
+  
+  
+  selectedPort = cp5.get(ScrollableList.class, "portName").getItem(n).get("value").toString();
+  updateDeviceStatus();
   
 }
 
