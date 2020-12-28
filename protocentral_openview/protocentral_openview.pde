@@ -548,33 +548,33 @@ void pcProcessData(char rxch)
           int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 | ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3] <<24;
           ch2=data2;
         } 
-        else
-        {
-        
-        ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
-        ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
-
-        ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
-        ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
-
-        ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[4];
-        ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[5];
-
-        int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
-        data1 <<= 16;
-        data1 >>= 16;
-        ch1=data1;
-   
-        int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
-        //data2 <<= 16;
-        //data2 >>= 16;
-        ch2 = data2;
-
-        int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
-        //data2 <<= 16;
-        //data2 >>= 16;
-        ch3 = data3;
+        else if(selectedBoard=="max86150")
+        {     
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
+  
+          ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[5];
+  
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          data1 <<= 16;
+          data1 >>= 16;
+          ch1=data1;
+     
+          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          //data2 <<= 16;
+          //data2 >>= 16;
+          ch2 = data2;
+  
+          int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          //data2 <<= 16;
+          //data2 >>= 16;
+          ch3 = data3;
         }
+        
         time = time+1;
         xdata[arrayIndex] = time;
 
