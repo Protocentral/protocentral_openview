@@ -36,17 +36,8 @@ import java.text.SimpleDateFormat;
 import java.math.*;
 import controlP5.*;
 
-
 ControlP5 cp5;
 
-
-Textlabel lblHR;
-Textlabel lblSPO2;
-Textlabel lblRR;
-Textlabel lblBP;
-Textlabel lblTemp;
-Textlabel lblMQTT;
-Textlabel lblMQTTStatus;
 
 /************** Packet Validation  **********************/
 private static final int CESState_Init = 0;
@@ -67,18 +58,18 @@ private static int CES_CMDIF_PKT_OVERHEAD = 5;
 
 /************** Packet Related Variables **********************/
 
-int ecs_rx_state = 0;                                        // To check the state of the packet
+int pc_rx_state = 0;                                        // To check the state of the packet
 int CES_Pkt_Len;                                             // To store the Packet Length Deatils
 int CES_Pkt_Pos_Counter, CES_Data_Counter;                   // Packet and data counter
 
 int CES_Pkt_PktType;         // To store the Packet Type
-char CES_Pkt_Data_Counter[] = new char[1000];                // Buffer to store the data from the packet
-char CES_Pkt_ECG_Counter[] = new char[4];                    // Buffer to hold ECG data
-char ces_pkt_red_counter[] = new char[4];                   // Respiration Buffer
-char CES_Pkt_SpO2_Counter_RED[] = new char[4];               // Buffer for SpO2 RED
-char ces_pkt_ir_counter[] = new char[4];                // Buffer for SpO2 IR
+char CES_Pkt_Data_Counter[] = new char[1000];                
 
-int pSize = 300;                                            // Total Size of the buffer
+char ces_pkt_ch1_buffer[] = new char[4];                    // Buffer to hold ECG data
+char ces_pkt_ch2_buffer[] = new char[4];                   // Respiration Buffer
+char ces_pkt_ch3_buffer[] = new char[4];                // Buffer for SpO2 IR
+
+int pSize = 600;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
 float time = 0;                                              // X axis increment variable
 
@@ -86,20 +77,15 @@ float time = 0;                                              // X axis increment
 float[] xdata = new float[pSize];
 float[] ch1Data = new float[pSize];
 float[] ch2Data = new float[pSize];
-float[] bpmArray = new float[pSize];
-float[] ecg_avg = new float[pSize];                          
-float[] resp_avg = new float[pSize];
 float[] ch3Data = new float[pSize];
-float[] spo2Array_IR = new float[pSize];
-float[] spo2Array_RED = new float[pSize];
-float[] rpmArray = new float[pSize];
-float[] ppgArray = new float[pSize];
 
-/************** Graph Related Variables **********************/
+int computed_val1 = 0;
+int computed_val2 = 0;
+
 
 double maxe, mine, maxr, minr, maxs, mins;             // To Calculate the Minimum and Maximum of the Buffer
 double ch1, ch2, spo2_ir, spo2_red, ch3, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
-double respirationVoltage=20;                          // To store the current respiration value
+
 boolean startPlot = false;                             // Conditional Variable to start and stop the plot
 
 GPlot plot2;
@@ -143,18 +129,14 @@ int updateCounter=0;
 
 boolean is_raspberrypi=false;
 
-int global_hr;
-int global_rr;
-float global_temp;
-int global_spo2;
-
-int global_test=0;
 
 boolean ECG_leadOff,spo2_leadOff;
 boolean ShowWarning = true;
 boolean ShowWarningSpo2=true;
 
 Textlabel lblSelectedDevice;
+Textlabel lblComputedVal1;
+Textlabel lblComputedVal2;
 
 public void setup() 
 {  
@@ -223,7 +205,7 @@ public void setup()
     xdata[i]=time;
     ch1Data[i] = 0;
     ch2Data[i] = 0;
-    ppgArray[i] = 0;
+    
   }
   time = 0;
 }
@@ -245,7 +227,7 @@ public void makeGUI()
         if (event.getAction() == ControlP5.ACTION_RELEASED) 
         {
           //startSerial(event.getController().getLabel(),115200);
-          //startSerial(event.getController().getLabel(),115200);
+           startSerial(selectedPort,57600);
            //selectedPort=cp5.get(ScrollableList.class, "portName").getItem("portName").get("value");
            print(selectedPort);
           //cp5.remove(event.getController().getName());
@@ -314,13 +296,25 @@ public void makeGUI()
      cp5.addButton("logo")
      .setPosition(20,height-40)
      .setImages(loadImage("protocentral.png"), loadImage("protocentral.png"), loadImage("protocentral.png"))
-     .updateSize();     
+     .updateSize();    
+     
+     lblComputedVal1 = cp5.addTextlabel("lbl_computer_val1")
+      .setText("")
+      .setPosition(width-200,height-40)
+      .setColorValue(color(255,255,255))
+      .setFont(createFont("verdana",20));
+     
+     lblComputedVal2 = cp5.addTextlabel("lbl_computer_val2")
+      .setText("")
+      .setPosition(width-400,height-40)
+      .setColorValue(color(255,255,255))
+      .setFont(createFont("verdana",20));
      
      lblSelectedDevice = cp5.addTextlabel("lblSelectedDevice")
       .setText("--")
       .setPosition(250,height-25)
       .setColorValue(color(255,255,255))
-      .setFont(createFont("verdana",16));
+      .setFont(createFont("verdana",12));
 }
 
 void board(int n) {
@@ -370,7 +364,7 @@ void portName(int n) {
   
   
   
-  selectedPort = cp5.get(ScrollableList.class, "portName").getItem(n).get("value").toString();
+  selectedPort = cp5.get(ScrollableList.class, "portName").getItem(n).get("name").toString();
   updateDeviceStatus();
   
 }
@@ -382,7 +376,6 @@ public void draw()
 
   GPointsArray pointsPlot1 = new GPointsArray(nPoints1);
   GPointsArray pointsPlot2 = new GPointsArray(nPoints1);
-  
   GPointsArray pointsPlot3 = new GPointsArray(nPoints1);
 
   if (startPlot)                             // If the condition is true, then the plotting is done
@@ -390,8 +383,8 @@ public void draw()
     for(int i=0; i<nPoints1;i++)
     {    
       pointsPlot1.add(i,ch1Data[i]);
-      pointsPlot2.add(i,ch3Data[i]); 
-      pointsPlot3.add(i,ch2Data[i]);  
+      pointsPlot2.add(i,ch2Data[i]); 
+      pointsPlot3.add(i,ch3Data[i]);  
     }
   } 
   else                                     // Default value is set
@@ -484,35 +477,35 @@ void startSerial(String startPortName, int baud)
 void serialEvent (Serial blePort) 
 {
   inString = blePort.readChar();
-  ecsProcessData(inString);
+  pcProcessData(inString);
 }
 
-void ecsProcessData(char rxch)
+void pcProcessData(char rxch)
 {
-  switch(ecs_rx_state)
+  switch(pc_rx_state)
   {
   case CESState_Init:
     if (rxch==CES_CMDIF_PKT_START_1)
-      ecs_rx_state=CESState_SOF1_Found;
+      pc_rx_state=CESState_SOF1_Found;
     break;
 
   case CESState_SOF1_Found:
     if (rxch==CES_CMDIF_PKT_START_2)
-      ecs_rx_state=CESState_SOF2_Found;
+      pc_rx_state=CESState_SOF2_Found;
     else
-      ecs_rx_state=CESState_Init;                    //Invalid Packet, reset state to init
+      pc_rx_state=CESState_Init;                    //Invalid Packet, reset state to init
     break;
 
   case CESState_SOF2_Found:
-    //    println("inside 3");
-    ecs_rx_state = CESState_PktLen_Found;
+        //println("inside 3");
+    pc_rx_state = CESState_PktLen_Found;
     CES_Pkt_Len = (int) rxch;
     CES_Pkt_Pos_Counter = CES_CMDIF_IND_LEN;
     CES_Data_Counter = 0;
     break;
 
   case CESState_PktLen_Found:
-    //    println("inside 4");
+    //println("inside 4");
     CES_Pkt_Pos_Counter++;
     if (CES_Pkt_Pos_Counter < CES_CMDIF_PKT_OVERHEAD)  //Read Header
     {
@@ -529,31 +522,59 @@ void ecsProcessData(char rxch)
     } else  //All data received
     {
       if (rxch==CES_CMDIF_PKT_STOP)
-      {     
-        CES_Pkt_ECG_Counter[0] = CES_Pkt_Data_Counter[0];
-        CES_Pkt_ECG_Counter[1] = CES_Pkt_Data_Counter[1];
+      { 
+        
+        if(selectedBoard=="afe4490")
+        {
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+          ces_pkt_ch1_buffer[2] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch1_buffer[3] = CES_Pkt_Data_Counter[3];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[5];
+          ces_pkt_ch2_buffer[2] = CES_Pkt_Data_Counter[6];
+          ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
+  
+          computed_val1= CES_Pkt_Data_Counter[8];
+          computed_val2= CES_Pkt_Data_Counter[9];
+          
+          lblComputedVal1.setText("SpO2: " + computed_val1 + " %");
+          lblComputedVal2.setText("HR: " + computed_val2 + " bpm");
+          
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8 | ces_pkt_ch1_buffer[2]<<16 | ces_pkt_ch1_buffer[3] <<24;
+          ch1=data1;
+     
+          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 | ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3] <<24;
+          ch2=data2;
+        } 
+        else
+        {
+        
+        ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+        ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
 
-        ces_pkt_red_counter[0] = CES_Pkt_Data_Counter[2];
-        ces_pkt_red_counter[1] = CES_Pkt_Data_Counter[3];
+        ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
+        ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
 
-        ces_pkt_ir_counter[0] = CES_Pkt_Data_Counter[4];
-        ces_pkt_ir_counter[1] = CES_Pkt_Data_Counter[5];
+        ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[4];
+        ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[5];
 
-        int data1 = CES_Pkt_ECG_Counter[0] | CES_Pkt_ECG_Counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+        int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
         data1 <<= 16;
         data1 >>= 16;
         ch1=data1;
    
-        int data2 = ces_pkt_red_counter[0] | ces_pkt_red_counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+        int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
         //data2 <<= 16;
         //data2 >>= 16;
         ch2 = data2;
 
-        int data3 = ces_pkt_ir_counter[0] | ces_pkt_ir_counter[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+        int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
         //data2 <<= 16;
         //data2 >>= 16;
         ch3 = data3;
-
+        }
         time = time+1;
         xdata[arrayIndex] = time;
 
@@ -585,10 +606,10 @@ void ecsProcessData(char rxch)
             e.printStackTrace();
           }
         }
-        ecs_rx_state=CESState_Init;
+        pc_rx_state=CESState_Init;
       } else
       {
-        ecs_rx_state=CESState_Init;
+        pc_rx_state=CESState_Init;
       }
     }
     break;
