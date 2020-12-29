@@ -2,11 +2,7 @@
 
 ProtoCentral OpenView is a graphical interface for MacOS/Linux/Windows for plotting/storing sensor data from ProtoCentral breakout boards and shields. This software is meant to be used with a device that presents a serial UART interface, such as an Arduino.
 
-
-
-![OpenView Animated](images/openview_anim.gif)
-
-For compiled binaries, please check the **releases** tab above.
+![OpenView Animated](images/openview.gif)
 
 ## Features:
 
