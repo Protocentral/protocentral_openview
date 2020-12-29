@@ -69,7 +69,7 @@ char ces_pkt_ch1_buffer[] = new char[4];                    // Buffer to hold EC
 char ces_pkt_ch2_buffer[] = new char[4];                   // Respiration Buffer
 char ces_pkt_ch3_buffer[] = new char[4];                // Buffer for SpO2 IR
 
-int windowSize = 6*128;                                            // Total Size of the buffer
+int windowSize = 10*128;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
 float time = 0;                                              // X axis increment variable
 
@@ -140,6 +140,8 @@ Textlabel lblComputedVal2;
 
 boolean isRunning=false;
 
+final static String ICON  = "logo_round.jpg";
+
 public void setup() 
 {  
   
@@ -159,6 +161,8 @@ public void setup()
   
   makeGUI();
   surface.setTitle("Protocentral OpenView");
+  PImage icon = loadImage("logo_round.png");
+  surface.setIcon(icon);
   
   plot1 = new GPlot(this);
   plot1.setPos(20,60);
@@ -212,34 +216,24 @@ public void setup()
   time = 0;
 }
 
+void changeAppIcon(PImage img) {
+  final PGraphics pg = createGraphics(16, 16, JAVA2D);
+
+  pg.beginDraw();
+  pg.image(img, 0, 0, 16, 16);
+  pg.endDraw();
+
+  frame.setIconImage(pg.image);
+}
 
 public void makeGUI()
 {  
    cp5 = new ControlP5(this);
-   cp5.addButton("Start")
-     .setValue(0)
-     .setPosition(width-225,10)
-     .setSize(100,40)
-     .setFont(createFont("Arial",15))
-     .setColorBackground(color(0,255,0))
-     .setColorLabel(color(0,0,0))
-     
-     .addCallback(new CallbackListener() {
-      public void controlEvent(CallbackEvent event) {
-        if (event.getAction() == ControlP5.ACTION_RELEASED) 
-        {
-          //startSerial(event.getController().getLabel(),115200);
-           startSerial(selectedPort,57600);
-           //selectedPort=cp5.get(ScrollableList.class, "portName").getItem("portName").get("value");
-           print(selectedPort);
-          //cp5.remove(event.getController().getName());
-        }
-      }
-     });
+   
      
       // create a toggle and change the default look to a (on/off) switch look
     cp5.addToggle("toggleONOFF")
-     .setPosition(width-350,10)
+     .setPosition(width-225,10)
      .setSize(100,40)
      .setValue(false)
      .setColorBackground(color(0,255,0))
@@ -613,13 +607,13 @@ void pcProcessData(char rxch)
           ch1=data1;
      
           int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
-          //data2 <<= 16;
-          //data2 >>= 16;
+          data2 <<= 16;
+          data2 >>= 16;
           ch2 = data2;
   
           int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
-          //data2 <<= 16;
-          //data2 >>= 16;
+          data3 <<= 16;
+          data3 >>= 16;
           ch3 = data3;
         }
         else if(selectedBoard=="pulse-exp")

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm-r *.zip
+rm -r *.zip
 
 rm -r application.linux32
 rm -r application.linux-armv6hf
@@ -11,6 +11,8 @@ mv application.linux64 pc-openview-linux64
 zip -r pc-openview-linux64.zip pc-openview-linux64
 
 mv application.macosx pc-openview-macosx
+cp data/sketch.icns pc-openview-macosx/protocentral_openview.app/Contents/
+codesign -s "Apple Development: Ashwin WHITCHURCH (3C7A2Z4F68)" pc-openview-macosx/protocentral_openview.app
 zip -r pc-openview-macosx.zip pc-openview-macosx
 
 mv application.windows32 pc-openview-windows32

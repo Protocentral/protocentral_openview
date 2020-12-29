@@ -10,9 +10,11 @@ For compiled binaries, please check the **releases** tab above.
 
 ## Features:
 
-* Development environment:** Processing 3(https://processing.org/)
+* Development environment: [Processing 3](https://processing.org/)
 * Compatibility:** MacOS/Linux/Windows
 * Data storage option to text or CSV files
+* Default baud rate is 57,600 bps
+* You can add your own board by editing the .pde file
 
 ## Installing and using ProtoCentral OpenView
 
