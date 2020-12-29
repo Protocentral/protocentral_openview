@@ -69,15 +69,15 @@ char ces_pkt_ch1_buffer[] = new char[4];                    // Buffer to hold EC
 char ces_pkt_ch2_buffer[] = new char[4];                   // Respiration Buffer
 char ces_pkt_ch3_buffer[] = new char[4];                // Buffer for SpO2 IR
 
-int pSize = 600;                                            // Total Size of the buffer
+int windowSize = 6*128;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
 float time = 0;                                              // X axis increment variable
 
 // Buffer for ecg,spo2,respiration,and average of thos values
-float[] xdata = new float[pSize];
-float[] ch1Data = new float[pSize];
-float[] ch2Data = new float[pSize];
-float[] ch3Data = new float[pSize];
+float[] xdata = new float[windowSize];
+float[] ch1Data = new float[windowSize];
+float[] ch2Data = new float[windowSize];
+float[] ch3Data = new float[windowSize];
 
 int computed_val1 = 0;
 int computed_val2 = 0;
@@ -121,7 +121,7 @@ String selectedBoard;
 PImage logo;
 boolean gStatus;                                        // Boolean variable to save the grid visibility status
 
-int nPoints1 = pSize;
+int nPoints1 = windowSize;
 int totalPlotsHeight=0;
 int totalPlotsWidth=0;
 int heightHeader=100;
@@ -137,6 +137,8 @@ boolean ShowWarningSpo2=true;
 Textlabel lblSelectedDevice;
 Textlabel lblComputedVal1;
 Textlabel lblComputedVal2;
+
+boolean isRunning=false;
 
 public void setup() 
 {  
@@ -199,7 +201,7 @@ public void setup()
 
   /*******  Initializing zero for buffer ****************/
 
-  for (int i=0; i<pSize; i++) 
+  for (int i=0; i<windowSize; i++) 
   {
     time = time + 1;
     xdata[i]=time;
@@ -234,6 +236,21 @@ public void makeGUI()
         }
       }
      });
+     
+      // create a toggle and change the default look to a (on/off) switch look
+    cp5.addToggle("toggleONOFF")
+     .setPosition(width-350,10)
+     .setSize(100,40)
+     .setValue(false)
+     .setColorBackground(color(0,255,0))
+      .setColorActive(color(255,0,0))
+      .setCaptionLabel("START")
+      .setColorLabel(0) 
+      .getCaptionLabel()
+      .setFont(createFont("Arial",15))
+      .toUpperCase(false)
+      .align(ControlP5.CENTER,ControlP5.CENTER)
+     ;
   
    cp5.addButton("Record")
      .setValue(0)
@@ -282,8 +299,9 @@ public void makeGUI()
          .setOpen(false)
          .addItem("MAX86150 Breakout","max86150")
          .addItem("AFE4490 Breakout/Shield","afe4490")
-         .addItem("MAX30003 Breakout","max30003")
-         .addItem("ADS1292R Breakout/Shield","ads1292r")
+         //.addItem("MAX30003 Breakout","max30003")
+         //.addItem("ADS1292R Breakout/Shield","ads1292r")
+         //.addItem("Pulse Express (MAX30102/MAX32664D)","pulse-exp")
          .setType(ScrollableList.DROPDOWN);    
 
 /*
@@ -368,6 +386,20 @@ void portName(int n) {
   updateDeviceStatus();
   
 }
+
+void toggleONOFF(boolean onoff) {
+  if(onoff==true) {
+      startSerial(selectedPort,57600);
+      cp5.get(Toggle.class, "toggleONOFF").setCaptionLabel("STOP");
+  } else {
+      if(port!=null){
+        stopSerial();
+        cp5.get(Toggle.class, "toggleONOFF").setCaptionLabel("START");
+      }
+  }
+  println("a toggle event.");
+}
+
 
 public void draw() 
 {
@@ -469,7 +501,23 @@ void startSerial(String startPortName, int baud)
   catch(Exception e)
   {
 
-    showMessageDialog(null, "Port is busy", "Alert", ERROR_MESSAGE);
+    showMessageDialog(null, "Port not available", "Error", ERROR_MESSAGE);
+    System.exit (0);
+  }
+}
+
+void stopSerial()
+{
+  try
+  {
+      port.clear();
+      port.stop();
+      startPlot = false;
+  }
+  catch(Exception e)
+  {
+
+    showMessageDialog(null, "Port not available", "Alert", ERROR_MESSAGE);
     System.exit (0);
   }
 }
@@ -574,6 +622,58 @@ void pcProcessData(char rxch)
           //data2 >>= 16;
           ch3 = data3;
         }
+        else if(selectedBoard=="pulse-exp")
+        {     
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
+  
+          ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[5];
+  
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          data1 <<= 16;
+          data1 >>= 16;
+          ch1=data1;
+     
+          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          //data2 <<= 16;
+          //data2 >>= 16;
+          ch2 = data2;
+  
+          int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          //data2 <<= 16;
+          //data2 >>= 16;
+          ch3 = data3;
+        }
+        else if(selectedBoard=="ads1293")
+        {     
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
+  
+          ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[5];
+  
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          data1 <<= 16;
+          data1 >>= 16;
+          ch1=data1;
+     
+          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          //data2 <<= 16;
+          //data2 >>= 16;
+          ch2 = data2;
+  
+          int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          //data2 <<= 16;
+          //data2 >>= 16;
+          ch3 = data3;
+        }
         
         time = time+1;
         xdata[arrayIndex] = time;
@@ -585,7 +685,7 @@ void pcProcessData(char rxch)
         arrayIndex++;
        
         
-        if (arrayIndex == pSize)
+        if (arrayIndex == windowSize)
         {  
           arrayIndex = 0;
           time = 0;

@@ -1,27 +1,42 @@
 # ProtoCentral OpenView
 
-ProtoCentral OpenView is a graphical interface for MacOS/Linux/Windows for plotting/storing data from ProtoCentral breakouts.
+ProtoCentral OpenView is a graphical interface for MacOS/Linux/Windows for plotting/storing sensor data from ProtoCentral breakout boards and shields. This software is meant to be used with a device that presents a serial UART interface, such as an Arduino.
+
+
 
 ![OpenView Animated](images/openview_anim.gif)
 
 For compiled binaries, please check the **releases** tab above.
 
-**Development environment:** Processing 3(https://processing.org/)
-**Compatibility:** MacOS/Linux/Windows
+## Features:
+
+* Development environment:** Processing 3(https://processing.org/)
+* Compatibility:** MacOS/Linux/Windows
+* Data storage option to text or CSV files
+
+## Installing and using ProtoCentral OpenView
+
+
+ProtoCentral OpenView is available for Windows, MacOS and Linux.
+
+You can download the latest version for your operating system from the [Releases](https://github.com/Protocentral/protocentral_openview/releases) page. 
+
+OpenView is written on the [Processing Java IDE](https://processing.org/download/) and is fully open source. You can compile your own from the source code provide in this GitHub repository. 
 
 ### Processing library dependencies
 
 * ControlP5 GUI library
 * Grafica
 
-You can install these from Processing through (Sketch->Import Library->Add Library)
+You can install these from Processing through (Sketch->Import Library->Add Library).
 
-### Supported boards
+## Supported devices
 
-As of now, this app supports the following boards:
-* ProtoCentral MAX86150 PPG and ECG breakout (https://www.protocentral.com/home/1338-protocentral-max86150-ppg-and-ecg-breakout-with-qwiic.html)
+As of now, this application supports the following boards:
+* ProtoCentral [MAX86150 PPG and ECG breakout](https://protocentral.com/product/protocentral-max86150-ppg-and-ecg-breakout-with-qwiic-v2/)
+* ProtoCentral [AFE4490 Breakout board](https://protocentral.com/product/protocentral-afe4490-pulse-oximeter-breakout-board-kit/) and [AFE4490 Arduino shield](https://protocentral.com/product/protocentral-afe4490-pulse-oximeter-shield-for-arduino-v2/)
 
-Support will be added for more boards.
+Support will be added for more boards in the future.
 
 # License
 
