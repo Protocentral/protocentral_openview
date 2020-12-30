@@ -30,11 +30,14 @@ You can install these from Processing through (Sketch->Import Library->Add Libra
 
 ## Supported devices
 
-As of now, this application supports the following boards:
-* ProtoCentral [MAX86150 PPG and ECG breakout](https://protocentral.com/product/protocentral-max86150-ppg-and-ecg-breakout-with-qwiic-v2/)
-* ProtoCentral [AFE4490 Breakout board](https://protocentral.com/product/protocentral-afe4490-pulse-oximeter-breakout-board-kit/) and [AFE4490 Arduino shield](https://protocentral.com/product/protocentral-afe4490-pulse-oximeter-shield-for-arduino-v2/)
+Currently, this application supports the following boards:
 
-Support will be added for more boards in the future.
+* ProtoCentral [ADS1292R ECG/Respiration Breakout](https://protocentral.com/product/ads1292r-ecg-respiration-breakout-kit/) and [ADS1292R ECG/Respiration Shield](https://protocentral.com/product/ads1292r-ecg-respiration-shield-for-arduino-v2/)
+* ProtoCentral [ADS1293 3-channel ECG Breakout](https://protocentral.com/product/protocentral-ads1293-breakout-board/) 
+* ProtoCentral [AFE4490 Breakout board](https://protocentral.com/product/protocentral-afe4490-pulse-oximeter-breakout-board-kit/) and [AFE4490 Arduino shield](https://protocentral.com/product/protocentral-afe4490-pulse-oximeter-shield-for-arduino-v2/)
+* ProtoCentral [MAX30003 Breakout Board](https://protocentral.com/product/protocentral-max30003-single-lead-ecg-breakout-board-v2/)
+* ProtoCentral [MAX86150 PPG and ECG breakout](https://protocentral.com/product/protocentral-max86150-ppg-and-ecg-breakout-with-qwiic-v2/)
+* ProtoCentral [Pulse Express Pulse-Ox & Heart Rate Sensor with MAX32664](https://protocentral.com/product/pulse-express-pulse-ox-heart-rate-sensor-with-max32664/)
 
 # License
 
