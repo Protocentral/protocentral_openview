@@ -289,7 +289,7 @@ public void makeGUI()
        .addItem("AFE4490 Breakout/Shield","afe4490")
        .addItem("MAX86150 Breakout","max86150")
        .addItem("Pulse Express (MAX30102/MAX32664D)","pulse-exp")
-       //.addItem("MAX30003 Breakout","max30003")
+       .addItem("MAX30003 Breakout","max30003")
        
        .setType(ScrollableList.DROPDOWN);    
 
@@ -312,7 +312,7 @@ public void makeGUI()
      
      lblSelectedDevice = cp5.addTextlabel("lblSelectedDevice")
       .setText("--")
-      .setPosition(250,height-25)
+      .setPosition(250,height-30)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",12));
 }
@@ -539,17 +539,19 @@ void pcProcessData(char rxch)
           ces_pkt_ch2_buffer[2] = CES_Pkt_Data_Counter[6];
           ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
   
-          computed_val1= CES_Pkt_Data_Counter[8];
-          computed_val2= CES_Pkt_Data_Counter[9];
           
-          lblComputedVal1.setText("SpO2: " + computed_val1 + " %");
-          lblComputedVal2.setText("HR: " + computed_val2 + " bpm");
           
           int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8 | ces_pkt_ch1_buffer[2]<<16 | ces_pkt_ch1_buffer[3] <<24;
           ch1=data1;
      
           int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 | ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3] <<24;
           ch2=data2;
+          
+          computed_val1= CES_Pkt_Data_Counter[8];
+          computed_val2= CES_Pkt_Data_Counter[9];
+          
+          lblComputedVal1.setText("SpO2: " + computed_val1 + " %");
+          lblComputedVal2.setText("HR: " + computed_val2 + " bpm");
         } 
         else if(selectedBoard=="max86150")
         {     
@@ -585,8 +587,6 @@ void pcProcessData(char rxch)
           ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
           ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
   
-         
-  
           int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
           //data1 <<= 16;
           //data1 >>= 16;
@@ -596,8 +596,6 @@ void pcProcessData(char rxch)
           //data2 <<= 16;
           //data2 >>= 16;
           ch2 = data2;
-  
-
         }
         else if(selectedBoard=="ads1292r")
         {     
@@ -622,8 +620,33 @@ void pcProcessData(char rxch)
           
           lblComputedVal1.setText("HR: " + computed_val2 + " bpm ");
           lblComputedVal2.setText("RR: " + computed_val1 + " bpm");
+        }
+        else if(selectedBoard=="max30003")
+        {     
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+          ces_pkt_ch1_buffer[2] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch1_buffer[3] = CES_Pkt_Data_Counter[3];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[5];
+          ces_pkt_ch2_buffer[2] = CES_Pkt_Data_Counter[6];
+          ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
           
+          ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[8];
+          ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[9];
+          ces_pkt_ch3_buffer[2] = CES_Pkt_Data_Counter[10];
+          ces_pkt_ch3_buffer[3] = CES_Pkt_Data_Counter[11];
+ 
           
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8 | ces_pkt_ch1_buffer[2]<<16 | ces_pkt_ch1_buffer[3] <<24;
+          ch1=data1;
+     
+          int computed_val1 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 | ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3] <<24;
+          int computed_val2 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8 | ces_pkt_ch3_buffer[2]<<16 | ces_pkt_ch3_buffer[3] <<24;
+          
+          lblComputedVal1.setText("RR Interval: " + computed_val1 + " ms");
+          lblComputedVal2.setText("HR: " + computed_val2 + " bpm");
         }
         else if(selectedBoard=="ads1293")
         {     
