@@ -1,9 +1,12 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 //
-//   Raspberry Pi/ Desktop GUI for controlling the HealthyPi HAT v3
+//   Desktop GUI for use with ProtoCentral breakout boards and shields
 //
-//   Copyright (c) 2016 ProtoCentral
-//   
+//   Wrriten by: Ashwin Whitchurch (support@protocentral.com)
+//   Copyright (c) 2016-2020 ProtoCentral Electronics
+//
+//   GitHub: https://github.com/Protocentral/protocentral_openview.git
+//
 //   This software is licensed under the MIT License(http://opensource.org/licenses/MIT). 
 //   
 //   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT 
@@ -228,39 +231,38 @@ void changeAppIcon(PImage img) {
 
 public void makeGUI()
 {  
-   cp5 = new ControlP5(this);
-   
+     cp5 = new ControlP5(this);
      
-      // create a toggle and change the default look to a (on/off) switch look
-    cp5.addToggle("toggleONOFF")
-     .setPosition(width-225,10)
-     .setSize(100,40)
-     .setValue(false)
-     .setColorBackground(color(0,255,0))
-      .setColorActive(color(255,0,0))
-      .setCaptionLabel("START")
-      .setColorLabel(0) 
-      .getCaptionLabel()
-      .setFont(createFont("Arial",15))
-      .toUpperCase(false)
-      .align(ControlP5.CENTER,ControlP5.CENTER)
-     ;
+        
+      cp5.addToggle("toggleONOFF")
+       .setPosition(width-225,10)
+       .setSize(100,40)
+       .setValue(false)
+       .setColorBackground(color(0,255,0))
+        .setColorActive(color(255,0,0))
+        .setCaptionLabel("START")
+        .setColorLabel(0) 
+        .getCaptionLabel()
+        .setFont(createFont("Arial",15))
+        .toUpperCase(false)
+        .align(ControlP5.CENTER,ControlP5.CENTER)
+       ;
   
-   cp5.addButton("Record")
-     .setValue(0)
-     .setPosition(width-110,10)
-     .setSize(100,40)
-     .setFont(createFont("Arial",15))
-     .addCallback(new CallbackListener() {
-      public void controlEvent(CallbackEvent event) {
-        if (event.getAction() == ControlP5.ACTION_RELEASED) 
-        {
-          RecordData();
-          //cp5.remove(event.getController().getName());
+     cp5.addButton("Record")
+       .setValue(0)
+       .setPosition(width-110,10)
+       .setSize(100,40)
+       .setFont(createFont("Arial",15))
+       .addCallback(new CallbackListener() {
+        public void controlEvent(CallbackEvent event) {
+          if (event.getAction() == ControlP5.ACTION_RELEASED) 
+          {
+            RecordData();
+            //cp5.remove(event.getController().getName());
+          }
         }
-      }
-     } 
-     );
+       } 
+       );
            
       cp5.addScrollableList("portName")
          .setPosition(20, 10)
@@ -272,41 +274,25 @@ public void makeGUI()
          .setItemHeight(40)
          .addItems(port.list())
          .setType(ScrollableList.DROPDOWN) // currently supported DROPDOWN and LIST
-         /*
-         .addCallback(new CallbackListener() 
-         {
-            public void controlEvent(CallbackEvent event) 
-            {
-              if (event.getAction() == ControlP5.ACTION_RELEASED) 
-              {
-                startSerial(event.getController().getLabel(),115200);
-              }
-            }
-         } */
+
        ;    
       cp5.addScrollableList("board")
-         .setPosition(275, 10)
-         .setSize(200, 400)
-         .setFont(createFont("Arial",12))
-         .setBarHeight(40)
-         .setItemHeight(40)
-         .setOpen(false)
-         .addItem("MAX86150 Breakout","max86150")
-         .addItem("AFE4490 Breakout/Shield","afe4490")
-         .addItem("ADS1293 Breakout/Shield","ads1293")
-         .addItem("Pulse Express (MAX30102/MAX32664D)","pulse-exp")
-         //.addItem("MAX30003 Breakout","max30003")
-         //.addItem("ADS1292R Breakout/Shield","ads1292r")
-         
-         .setType(ScrollableList.DROPDOWN);    
+       .setPosition(275, 10)
+       .setSize(250, 400)
+       .setFont(createFont("Arial",12))
+       .setBarHeight(40)
+       .setItemHeight(40)
+       .setOpen(false)
+       
+       .addItem("ADS1292R Breakout/Shield","ads1292r")
+       .addItem("ADS1293 Breakout/Shield","ads1293")
+       .addItem("AFE4490 Breakout/Shield","afe4490")
+       .addItem("MAX86150 Breakout","max86150")
+       .addItem("Pulse Express (MAX30102/MAX32664D)","pulse-exp")
+       //.addItem("MAX30003 Breakout","max30003")
+       
+       .setType(ScrollableList.DROPDOWN);    
 
-/*
-       lblHR = cp5.addTextlabel("lblHR")
-      .setText("Heartrate: --- bpm")
-      .setPosition(width-550,50)
-      .setColorValue(color(255,255,255))
-      .setFont(createFont("Arial",40));
-*/
      cp5.addButton("logo")
      .setPosition(20,height-40)
      .setImages(loadImage("protocentral.png"), loadImage("protocentral.png"), loadImage("protocentral.png"))
@@ -314,13 +300,13 @@ public void makeGUI()
      
      lblComputedVal1 = cp5.addTextlabel("lbl_computer_val1")
       .setText("")
-      .setPosition(width-200,height-40)
+      .setPosition(width-400,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
      
      lblComputedVal2 = cp5.addTextlabel("lbl_computer_val2")
       .setText("")
-      .setPosition(width-400,height-40)
+      .setPosition(width-200,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
      
@@ -332,27 +318,13 @@ public void makeGUI()
 }
 
 void board(int n) {
-  /* request the selected item based on index n */
+  
     println(n, cp5.get(ScrollableList.class, "board").getItem(n));
-  
-  /* here an item is stored as a Map  with the following key-value pairs:
-   * name, the given name of the item
-   * text, the given text of the item by default the same as name
-   * value, the given value of the item, can be changed by using .getItem(n).put("value", "abc"); a value here is of type Object therefore can be anything
-   * color, the given color of the item, how to change, see below
-   * view, a customizable view, is of type CDrawable 
-   */
-  
-    CColor c = new CColor();
-    c.setBackground(color(255,0,0));
-    cp5.get(ScrollableList.class, "board").getItem(n).put("color", c);
+    
     Map itemMap = cp5.get(ScrollableList.class, "board").getItem(n);
     selectedBoard = itemMap.get("value").toString();
     print(selectedBoard);
     updateDeviceStatus();
-    
-    //selectedBoard = cp5.get(ScrollableList.class, "board").getItem(n).getString();
-  
 }
 
 void updateDeviceStatus()
@@ -361,23 +333,7 @@ void updateDeviceStatus()
 }
 
 void portName(int n) {
-  /* request the selected item based on index n */
   println(n, cp5.get(ScrollableList.class, "portName").getItem(n));
-  
-  /* here an item is stored as a Map  with the following key-value pairs:
-   * name, the given name of the item
-   * text, the given text of the item by default the same as name
-   * value, the given value of the item, can be changed by using .getItem(n).put("value", "abc"); a value here is of type Object therefore can be anything
-   * color, the given color of the item, how to change, see below
-   * view, a customizable view, is of type CDrawable 
-   */
-  
-   CColor c = new CColor();
-  c.setBackground(color(255,0,0));
-  cp5.get(ScrollableList.class, "portName").getItem(n).put("color", c);
-  
-  
-  
   selectedPort = cp5.get(ScrollableList.class, "portName").getItem(n).get("name").toString();
   updateDeviceStatus();
   
@@ -397,7 +353,6 @@ void toggleONOFF(boolean onoff) {
         cp5.get(ScrollableList.class, "board").unlock();
       }
   }
-  println("a toggle event.");
 }
 
 
@@ -643,6 +598,32 @@ void pcProcessData(char rxch)
           ch2 = data2;
   
 
+        }
+        else if(selectedBoard=="ads1292r")
+        {     
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
+  
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          data1 <<= 16;
+          data1 >>= 16;
+          ch1=data1;
+     
+          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          data2 <<= 16;
+          data2 >>= 16;
+          ch2 = data2;
+          
+          computed_val1= CES_Pkt_Data_Counter[15];
+          computed_val2= CES_Pkt_Data_Counter[16];
+          
+          lblComputedVal1.setText("HR: " + computed_val2 + " bpm ");
+          lblComputedVal2.setText("RR: " + computed_val1 + " bpm");
+          
+          
         }
         else if(selectedBoard=="ads1293")
         {     
