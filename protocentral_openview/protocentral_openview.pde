@@ -68,9 +68,13 @@ int CES_Pkt_Pos_Counter, CES_Data_Counter;                   // Packet and data 
 int CES_Pkt_PktType;         // To store the Packet Type
 char CES_Pkt_Data_Counter[] = new char[1000];                
 
-char ces_pkt_ch1_buffer[] = new char[4];                    // Buffer to hold ECG data
-char ces_pkt_ch2_buffer[] = new char[4];                   // Respiration Buffer
-char ces_pkt_ch3_buffer[] = new char[4];                // Buffer for SpO2 IR
+char ces_pkt_ch1_buffer[] = new char[4];                    
+char ces_pkt_ch2_buffer[] = new char[4];                   
+char ces_pkt_ch3_buffer[] = new char[4];               
+
+char ces_pkt_cv1_buffer[] = new char[4];
+char ces_pkt_cv2_buffer[] = new char[4];
+
 
 int windowSize = 10*128;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
@@ -604,7 +608,13 @@ void pcProcessData(char rxch)
   
           ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
           ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
-  
+          
+          ces_pkt_cv1_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_cv1_buffer[1] = CES_Pkt_Data_Counter[5];
+          
+          ces_pkt_cv2_buffer[0] = CES_Pkt_Data_Counter[6];
+          ces_pkt_cv2_buffer[1] = CES_Pkt_Data_Counter[7];
+          
           int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
           data1 <<= 16;
           data1 >>= 16;
@@ -615,11 +625,16 @@ void pcProcessData(char rxch)
           data2 >>= 16;
           ch2 = data2;
           
-          computed_val1= CES_Pkt_Data_Counter[15];
-          computed_val2= CES_Pkt_Data_Counter[16];
+          computed_val1 = ces_pkt_cv1_buffer[0] | ces_pkt_cv1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          computed_val1 <<= 16;
+          computed_val1 >>= 16;
           
-          lblComputedVal1.setText("HR: " + computed_val2 + " bpm ");
-          lblComputedVal2.setText("RR: " + computed_val1 + " bpm");
+          computed_val2 = ces_pkt_cv2_buffer[0] | ces_pkt_cv2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          computed_val2 <<= 16;
+          computed_val2 >>= 16;
+          
+          lblComputedVal1.setText("RR: " + computed_val1 + " bpm ");
+          lblComputedVal2.setText("HR: " + computed_val2 + " bpm");
         }
         else if(selectedBoard=="max30003")
         {     
