@@ -2,7 +2,7 @@
 //
 //   Desktop GUI for use with ProtoCentral breakout boards and shields
 //
-//   Wrriten by: Ashwin Whitchurch (support@protocentral.com)
+//   Writen by: Ashwin Whitchurch (support@protocentral.com)
 //   Copyright (c) 2016-2020 ProtoCentral Electronics
 //
 //   GitHub: https://github.com/Protocentral/protocentral_openview.git
