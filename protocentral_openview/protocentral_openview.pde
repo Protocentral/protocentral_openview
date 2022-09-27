@@ -230,7 +230,7 @@ void changeAppIcon(PImage img) {
   pg.image(img, 0, 0, 16, 16);
   pg.endDraw();
 
-  frame.setIconImage(pg.image);
+  //frame.setIconImage(pg.image);
 }
 
 public void makeGUI()
