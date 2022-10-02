@@ -320,6 +320,71 @@ public void makeGUI()
       .setPosition(250,height-30)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",12));
+     
+     cp5.addScrollableList("plot1_scale")
+       .setPosition(width-170, 60)
+       .setSize(150, 400)
+       .setFont(createFont("Arial",12))
+       .setBarHeight(30)
+       .setItemHeight(30)
+       .setOpen(false)
+       
+       .setLabel("Change Scale")
+       
+       .addItem("6 secs","6secs")
+       .addItem("4 secs","4secs")
+       
+       .setType(ScrollableList.DROPDOWN);
+       
+     cp5.addScrollableList("plot2_scale")
+       .setPosition(width-170, (totalPlotsHeight/3+60))
+       .setSize(150, 400)
+       .setFont(createFont("Arial",12))
+       .setBarHeight(30)
+       .setItemHeight(30)
+       .setOpen(false)
+       
+       .setLabel("Change Scale")
+       
+       .addItem("6 secs","6secs")
+       .addItem("4 secs","4secs")
+       
+       .setType(ScrollableList.DROPDOWN);
+       
+      cp5.addScrollableList("plot3_scale")
+       .setPosition(width-170, (totalPlotsHeight/3+totalPlotsHeight/3+60))
+       .setSize(150, 400)
+       .setFont(createFont("Arial",12))
+       .setBarHeight(30)
+       .setItemHeight(30)
+       .setOpen(false)
+       
+       .setLabel("Change Scale")
+       
+       .addItem("6 secs","6secs")
+       .addItem("4 secs","4secs")
+       .setType(ScrollableList.DROPDOWN);
+     
+
+     lblSelectedDevice = cp5.addTextlabel("lblPlot1Scale")
+      .setText("X: 6 secs | Y: auto")
+      .setPosition(20, 60)
+      .setColorValue(color(255,255,255))
+      .setFont(createFont("verdana",12));
+      
+     lblSelectedDevice = cp5.addTextlabel("lblPlot2Scale")
+      .setText("X: 6 secs | Y: auto")
+      .setPosition(20, (totalPlotsHeight/3+60))
+      .setColorValue(color(255,255,255))
+      .setFont(createFont("verdana",12));
+      
+     lblSelectedDevice = cp5.addTextlabel("lblPlot3Scale")
+      .setText("X: 6 secs | Y: auto")
+      .setPosition(20, (totalPlotsHeight/3+totalPlotsHeight/3+60))
+      .setColorValue(color(255,255,255))
+      .setFont(createFont("verdana",12));
+      
+     
 }
 
 void board(int n) {
