@@ -41,7 +41,6 @@ import controlP5.*;
 
 ControlP5 cp5;
 
-
 /************** Packet Validation  **********************/
 private static final int CESState_Init = 0;
 private static final int CESState_SOF1_Found = 1;
@@ -75,10 +74,13 @@ char ces_pkt_ch3_buffer[] = new char[4];
 char ces_pkt_cv1_buffer[] = new char[4];
 char ces_pkt_cv2_buffer[] = new char[4];
 
-
 int windowSize = 10*128;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
-float time = 0;                                              // X axis increment variable
+int arrayIndex1=0;
+int arrayIndex2=0;
+int arrayIndex3=0;
+
+//float time = 0;                                              // X axis increment variable
 
 // Buffer for ecg,spo2,respiration,and average of thos values
 float[] xdata = new float[windowSize];
@@ -88,7 +90,6 @@ float[] ch3Data = new float[windowSize];
 
 int computed_val1 = 0;
 int computed_val2 = 0;
-
 
 double maxe, mine, maxr, minr, maxs, mins;             // To Calculate the Minimum and Maximum of the Buffer
 double ch1, ch2, spo2_ir, spo2_red, ch3, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
@@ -127,8 +128,6 @@ String selectedPlot1Scale;
 String selectedPlot2Scale; 
 String selectedPlot3Scale;
 
-/************** Logo Related Variables **********************/
-
 PImage logo;
 boolean gStatus;                                        // Boolean variable to save the grid visibility status
 
@@ -158,8 +157,6 @@ final static String ICON  = "logo_round.jpg";
 
 public void setup() 
 {  
-  
-  
   GPointsArray pointsPPG = new GPointsArray(nPoints1);
   GPointsArray pointsECG = new GPointsArray(nPoints1);
   GPointsArray pointsResp = new GPointsArray(nPoints1);
@@ -221,13 +218,13 @@ public void setup()
 
   for (int i=0; i<windowSize; i++) 
   {
-    time = time + 1;
-    xdata[i]=time;
+    //time = time + 1;
+    //xdata[i]=time;
     ch1Data[i] = 0;
     ch2Data[i] = 0;
     
   }
-  time = 0;
+  //time = 0;
 }
 
 void changeAppIcon(PImage img) {
@@ -831,21 +828,34 @@ void pcProcessData(char rxch)
         }
         
         
-        time = time+1;
-        xdata[arrayIndex] = time;
+        //time = time+1;
+        //xdata[arrayIndex] = time;
 
-        ch1Data[arrayIndex] = (float)ch1;
-        ch2Data[arrayIndex]= (float)ch2;
-        ch3Data[arrayIndex] = (float)ch3;
+        ch1Data[arrayIndex1] = (float)ch1;
+        ch2Data[arrayIndex2]= (float)ch2;
+        ch3Data[arrayIndex3] = (float)ch3;
 
-        arrayIndex++;
+        arrayIndex1++;
+        arrayIndex2++;
+        arrayIndex3++;
        
         
-        if (arrayIndex == windowSize)
+        if (arrayIndex1 == windowSize)
         {  
-          arrayIndex = 0;
-          time = 0;
-        }       
+          arrayIndex1 = 0;
+        }
+        
+        if (arrayIndex2 == windowSize)
+        {
+          arrayIndex2=0;
+        }
+        
+        if (arrayIndex3 == windowSize)
+        {
+          arrayIndex3=0;
+        }
+        
+                
 
         if (logging == true)
         {
