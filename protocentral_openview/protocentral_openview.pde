@@ -123,6 +123,10 @@ char inString = '\0';                                   // To receive the bytes 
 String selectedPort;                                    // Holds the selected port number
 String selectedBoard;
 
+String selectedPlot1Scale; 
+String selectedPlot2Scale; 
+String selectedPlot3Scale;
+
 /************** Logo Related Variables **********************/
 
 PImage logo;
@@ -136,7 +140,6 @@ int updateCounter=0;
 
 boolean is_raspberrypi=false;
 
-
 boolean ECG_leadOff,spo2_leadOff;
 boolean ShowWarning = true;
 boolean ShowWarningSpo2=true;
@@ -144,6 +147,10 @@ boolean ShowWarningSpo2=true;
 Textlabel lblSelectedDevice;
 Textlabel lblComputedVal1;
 Textlabel lblComputedVal2;
+
+Textlabel lblPlot1Scale;
+Textlabel lblPlot2Scale;
+Textlabel lblPlot3Scale;
 
 boolean isRunning=false;
 
@@ -331,8 +338,8 @@ public void makeGUI()
        
        .setLabel("Change Scale")
        
-       .addItem("6 secs","6secs")
-       .addItem("4 secs","4secs")
+       .addItem("6 secs","6")
+       .addItem("4 secs","4")
        
        .setType(ScrollableList.DROPDOWN);
        
@@ -346,8 +353,8 @@ public void makeGUI()
        
        .setLabel("Change Scale")
        
-       .addItem("6 secs","6secs")
-       .addItem("4 secs","4secs")
+       .addItem("6 secs","6")
+       .addItem("4 secs","4")
        
        .setType(ScrollableList.DROPDOWN);
        
@@ -361,24 +368,24 @@ public void makeGUI()
        
        .setLabel("Change Scale")
        
-       .addItem("6 secs","6secs")
-       .addItem("4 secs","4secs")
+       .addItem("6 secs","6")
+       .addItem("4 secs","4")
        .setType(ScrollableList.DROPDOWN);
      
 
-     lblSelectedDevice = cp5.addTextlabel("lblPlot1Scale")
+     lblPlot1Scale = cp5.addTextlabel("lblPlot1Scale")
       .setText("X: 6 secs | Y: auto")
       .setPosition(20, 60)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",12));
       
-     lblSelectedDevice = cp5.addTextlabel("lblPlot2Scale")
+     lblPlot2Scale = cp5.addTextlabel("lblPlot2Scale")
       .setText("X: 6 secs | Y: auto")
       .setPosition(20, (totalPlotsHeight/3+60))
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",12));
       
-     lblSelectedDevice = cp5.addTextlabel("lblPlot3Scale")
+     lblPlot3Scale = cp5.addTextlabel("lblPlot3Scale")
       .setText("X: 6 secs | Y: auto")
       .setPosition(20, (totalPlotsHeight/3+totalPlotsHeight/3+60))
       .setColorValue(color(255,255,255))
@@ -397,9 +404,45 @@ void board(int n) {
     updateDeviceStatus();
 }
 
+void plot1_scale(int n) 
+{
+    Map itemMap = cp5.get(ScrollableList.class, "plot1_scale").getItem(n);
+    selectedPlot1Scale = itemMap.get("value").toString();    
+    updatePlot1Scale();
+}
+
+void plot2_scale(int n) 
+{
+    Map itemMap = cp5.get(ScrollableList.class, "plot2_scale").getItem(n);
+    selectedPlot2Scale = itemMap.get("value").toString();    
+    updatePlot2Scale();
+}
+
+void plot3_scale(int n) 
+{
+    Map itemMap = cp5.get(ScrollableList.class, "plot3_scale").getItem(n);
+    selectedPlot3Scale = itemMap.get("value").toString();    
+    updatePlot3Scale();
+}
+
 void updateDeviceStatus()
 {
     lblSelectedDevice.setText("Selected device: " + selectedBoard + " on " + selectedPort);
+}
+
+void updatePlot1Scale()
+{
+    lblPlot1Scale.setText("X: " + selectedPlot1Scale + " secs | Y: auto");
+}
+
+void updatePlot2Scale()
+{
+    lblPlot2Scale.setText("X: " + selectedPlot2Scale + " secs | Y: auto");
+}
+
+void updatePlot3Scale()
+{
+    lblPlot3Scale.setText("X: " + selectedPlot3Scale + " secs | Y: auto");
 }
 
 void portName(int n) {
