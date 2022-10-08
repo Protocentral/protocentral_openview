@@ -327,7 +327,7 @@ public void makeGUI()
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",12));
      
-     cp5.addScrollableList("plot1_scale")
+     /*cp5.addScrollableList("plot1_scale")
        .setPosition(width-170, 60)
        .setSize(150, 400)
        .setFont(createFont("Arial",12))
@@ -370,7 +370,7 @@ public void makeGUI()
        .addItem("6 secs","6")
        .addItem("4 secs","4")
        .setType(ScrollableList.DROPDOWN);
-     
+     */
 
      lblPlot1Scale = cp5.addTextlabel("lblPlot1Scale")
       .setText("X: 6 secs | Y: auto")
