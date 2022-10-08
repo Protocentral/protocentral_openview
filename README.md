@@ -6,11 +6,11 @@ ProtoCentral OpenView is a graphical interface for MacOS/Linux/Windows for plott
 
 ## Features:
 
-* Development environment: [Processing 3](https://processing.org/)
+* Development environment: [Processing 3 / 4 Java](https://processing.org/)
 * Compatibility: MacOS/Linux/Windows
 * Data storage option to text or CSV files
 * Default baud rate is 57,600 bps
-* You can add your own board by editing the .pde file
+* You can add your own board by editing the source file
 
 ## Installing and using ProtoCentral OpenView
 
@@ -21,12 +21,13 @@ You can download the latest version for your operating system from the [Releases
 
 OpenView is written on the [Processing Java IDE](https://processing.org/download/) and is fully open source. You can compile your own from the source code provide in this GitHub repository. 
 
-### Processing library dependencies
+## Compiling and running OpenView from Source
 
-* ControlP5 GUI library
-* Grafica
-
-You can install these from Processing through (Sketch->Import Library->Add Library).
+1. Install the [Processing IDE](https://processing.org/download) for your specific operating system from [here](https://processing.org/download) 
+2. Install the folowing library dependencies. You can install these from Processing through (Sketch->Import Library->Add Library) and search for the name.
+    * ControlP5 GUI library
+    * Grafica
+3. Click Run to run the application
 
 ## Supported devices
 
@@ -38,6 +39,7 @@ Currently, this application supports the following boards:
 * ProtoCentral [MAX30003 Breakout Board](https://protocentral.com/product/protocentral-max30003-single-lead-ecg-breakout-board-v2/)
 * ProtoCentral [MAX86150 PPG and ECG breakout](https://protocentral.com/product/protocentral-max86150-ppg-and-ecg-breakout-with-qwiic-v2/)
 * ProtoCentral [Pulse Express Pulse-Ox & Heart Rate Sensor with MAX32664](https://protocentral.com/product/pulse-express-pulse-ox-heart-rate-sensor-with-max32664/)
+* ProtoCentral [MAX30001 ECG & BIOZ Breakout](https://protocentral.com/product/protocentral-max30001/) 
 
 # License
 
