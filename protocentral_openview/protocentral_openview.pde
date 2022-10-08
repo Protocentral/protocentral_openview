@@ -74,7 +74,7 @@ char ces_pkt_ch3_buffer[] = new char[4];
 char ces_pkt_cv1_buffer[] = new char[4];
 char ces_pkt_cv2_buffer[] = new char[4];
 
-int windowSize = 10*128;                                            // Total Size of the buffer
+int windowSize = 6*128;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
 int arrayIndex1=0;
 int arrayIndex2=0;
@@ -87,6 +87,8 @@ float[] xdata = new float[windowSize];
 float[] ch1Data = new float[windowSize];
 float[] ch2Data = new float[windowSize];
 float[] ch3Data = new float[windowSize];
+
+char ch2DataTag=0;
 
 int computed_val1 = 0;
 int computed_val2 = 0;
@@ -811,6 +813,8 @@ void pcProcessData(char rxch)
           ces_pkt_ch2_buffer[2] = CES_Pkt_Data_Counter[6];
           ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
           
+          ch2DataTag=CES_Pkt_Data_Counter[8];
+          
           /*ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[8];
           ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[9];
           ces_pkt_ch3_buffer[2] = CES_Pkt_Data_Counter[10];
@@ -832,14 +836,20 @@ void pcProcessData(char rxch)
         //xdata[arrayIndex] = time;
 
         ch1Data[arrayIndex1] = (float)ch1;
-        ch2Data[arrayIndex2]= (float)ch2;
+        
         ch3Data[arrayIndex3] = (float)ch3;
 
         arrayIndex1++;
-        arrayIndex2++;
-        arrayIndex3++;
-       
         
+        arrayIndex3++;
+        
+        if(ch2DataTag==0x00)
+        {
+          ch2Data[arrayIndex2]= (float)ch2;
+          arrayIndex2++;
+          
+        }
+         
         if (arrayIndex1 == windowSize)
         {  
           arrayIndex1 = 0;
