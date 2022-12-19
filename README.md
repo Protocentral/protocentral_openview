@@ -44,6 +44,24 @@ Currently, this application supports the following boards:
 * ProtoCentral [Pulse Express Pulse-Ox & Heart Rate Sensor with MAX32664](https://protocentral.com/product/pulse-express-pulse-ox-heart-rate-sensor-with-max32664/)
 * ProtoCentral [MAX30001 ECG & BIOZ Breakout](https://protocentral.com/product/protocentral-max30001/) 
 
+## Packet Format
+
+ProtoCentral OpenView is compatible with any device that can send data through Serial port over UART/USB/Bluetooth-SPP/BLE
+
+| Position      |   Value   |
+| ---------     | ----------|
+| 0             |   0x0A    | 
+| 1             |   0xFA    |
+| 2             |   Payload Length LSB  |
+| 3             |   Payload Length MSB  |
+| 4             |   0x02 (Type - Data)  |
+| 5             |   Payload 0           |
+| ..            |   Payload (...)       |
+|   n           |   Payload n+5         |
+| (PL Len + 5)  |   0x0B                |
+
+
+
 # License
 
 This software is open source and licensed under the following license:
