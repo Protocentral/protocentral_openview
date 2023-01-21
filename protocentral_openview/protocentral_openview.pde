@@ -299,6 +299,7 @@ public void makeGUI()
        .addItem("AFE4490 Breakout/Shield","afe4490")
        .addItem("MAX86150 Breakout","max86150")
        .addItem("Pulse Express (MAX30102/MAX32664D)","pulse-exp")
+       .addItem("tinyGSR Breakout","tinyGSR")
        .addItem("MAX30003 ECG Breakout","max30003")
        .addItem("MAX30001 ECG & BioZ Breakout","max30001")
        
@@ -707,6 +708,17 @@ void pcProcessData(char rxch)
           //data2 >>= 16;
           ch2 = data2;
         }
+        else if(selectedBoard=="tinyGSR")
+         {
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
+  
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          ch1=data1;
+         }
         else if(selectedBoard=="ads1292r")
         {     
           ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
