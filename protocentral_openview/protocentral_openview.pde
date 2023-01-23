@@ -39,8 +39,6 @@ import java.text.SimpleDateFormat;
 import java.math.*;
 import controlP5.*;
 
-import signal.library.*;
-
 import brainflow.DataFilter;
 import brainflow.FilterTypes;
 import brainflow.NoiseTypes;
@@ -52,8 +50,6 @@ import brainflow.BrainFlowInputParams;
 import brainflow.BrainFlowError;
 
 ControlP5 cp5;
-
-SignalFilter myFilter;
 
 /************** Packet Validation  **********************/
 private static final int CESState_Init = 0;
