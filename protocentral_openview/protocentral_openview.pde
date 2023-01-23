@@ -39,7 +39,21 @@ import java.text.SimpleDateFormat;
 import java.math.*;
 import controlP5.*;
 
+import signal.library.*;
+
+import brainflow.DataFilter;
+import brainflow.FilterTypes;
+import brainflow.NoiseTypes;
+
+import brainflow.BoardIds;
+import brainflow.BoardShim;
+import brainflow.BrainFlowInputParams;
+
+import brainflow.BrainFlowError;
+
 ControlP5 cp5;
+
+SignalFilter myFilter;
 
 /************** Packet Validation  **********************/
 private static final int CESState_Init = 0;
@@ -84,7 +98,8 @@ int arrayIndex3=0;
 
 // Buffer for ecg,spo2,respiration,and average of thos values
 float[] xdata = new float[windowSize];
-float[] ch1Data = new float[windowSize];
+
+double[] ch1Data = new double[windowSize];
 float[] ch2Data = new float[windowSize];
 float[] ch3Data = new float[windowSize];
 
@@ -157,6 +172,10 @@ boolean isRunning=false;
 
 final static String ICON  = "logo_round.jpg";
 
+// Main OneEuroFilter parameters
+float minCutoff = 0.004; // decrease this to get rid of slow speed jitter
+float beta      = 0.9;  // increase this to get rid of high speed lag
+
 public void setup() 
 {  
   GPointsArray pointsPPG = new GPointsArray(nPoints1);
@@ -226,7 +245,10 @@ public void setup()
     ch2Data[i] = 0;
     
   }
-  //time = 0;
+  
+    BrainFlowInputParams params = new BrainFlowInputParams ();
+    BoardIds board_id = BoardIds.SYNTHETIC_BOARD;
+    //BoardShim board_shim = new BoardShim (board_id, params);
 }
 
 void changeAppIcon(PImage img) {
@@ -244,19 +266,19 @@ public void makeGUI()
      cp5 = new ControlP5(this);
      
         
-      cp5.addToggle("toggleONOFF")
-       .setPosition(width-225,10)
-       .setSize(100,40)
-       .setValue(false)
-       .setColorBackground(color(0,255,0))
-        .setColorActive(color(255,0,0))
-        .setCaptionLabel("START")
-        .setColorLabel(0) 
-        .getCaptionLabel()
-        .setFont(createFont("Arial",15))
-        .toUpperCase(false)
-        .align(ControlP5.CENTER,ControlP5.CENTER)
-       ;
+    cp5.addToggle("toggleONOFF")
+     .setPosition(width-225,10)
+     .setSize(100,40)
+     .setValue(false)
+     .setColorBackground(color(0,255,0))
+      .setColorActive(color(255,0,0))
+      .setCaptionLabel("START")
+      .setColorLabel(0) 
+      .getCaptionLabel()
+      .setFont(createFont("Arial",15))
+      .toUpperCase(false)
+      .align(ControlP5.CENTER,ControlP5.CENTER)
+     ;
   
      cp5.addButton("Record")
        .setValue(0)
@@ -471,50 +493,61 @@ void toggleONOFF(boolean onoff) {
 
 public void draw() 
 {
-  //background(0);
-  background(19,75,102);
-
-  GPointsArray pointsPlot1 = new GPointsArray(nPoints1);
-  GPointsArray pointsPlot2 = new GPointsArray(nPoints1);
-  GPointsArray pointsPlot3 = new GPointsArray(nPoints1);
-
-  if (startPlot)                             // If the condition is true, then the plotting is done
-  {
-    for(int i=0; i<nPoints1;i++)
-    {    
-      pointsPlot1.add(i,ch1Data[i]);
-      pointsPlot2.add(i,ch2Data[i]); 
-      pointsPlot3.add(i,ch3Data[i]);  
+    
+    
+    //background(0);
+    background(19,75,102);
+    
+    GPointsArray pointsPlot1 = new GPointsArray(nPoints1);
+    GPointsArray pointsPlot2 = new GPointsArray(nPoints1);
+    GPointsArray pointsPlot3 = new GPointsArray(nPoints1);
+    
+    if (startPlot)                             // If the condition is true, then the plotting is done
+    {
+      for(int i=0; i<nPoints1;i++)
+      {    
+        try{
+        DataFilter.perform_bandpass(ch1Data, (int)128, (double)3.0,(double)50.0, 4, (int) 1, 1.0);
+        }
+         catch (BrainFlowError e) {
+            e.printStackTrace();
+        }
+        
+        pointsPlot1.add(i,(float)ch1Data[i]);
+        pointsPlot2.add(i,ch2Data[i]); 
+        pointsPlot3.add(i,ch3Data[i]);  
+      }
+    } 
+    else                                     // Default value is set
+    {
+      
     }
-  } 
-  else                                     // Default value is set
-  {
-  }
 
-  plot1.setPoints(pointsPlot1);
-  plot2.setPoints(pointsPlot2);
-  plot3.setPoints(pointsPlot3);
+    plot1.setPoints(pointsPlot1);
+    plot2.setPoints(pointsPlot2);
+    plot3.setPoints(pointsPlot3);
+    
+    plot1.beginDraw();
+    plot1.drawBackground();
+    plot1.drawLines();
+    plot1.endDraw();
+    
+    plot2.beginDraw();
+    plot2.drawBackground();
+    plot2.drawLines();
+    plot2.endDraw();
   
-  plot1.beginDraw();
-  plot1.drawBackground();
-  plot1.drawLines();
-  plot1.endDraw();
-  
-  plot2.beginDraw();
-  plot2.drawBackground();
-  plot2.drawLines();
-  plot2.endDraw();
-
-  plot3.beginDraw();
-  plot3.drawBackground();
-  plot3.drawLines();
-  plot3.endDraw();
+    plot3.beginDraw();
+    plot3.drawBackground();
+    plot3.drawLines();
+    plot3.endDraw();
 }
 
 public void CloseApp() 
 {
   int dialogResult = JOptionPane.showConfirmDialog (null, "Would You Like to Close The Application?");
-  if (dialogResult == JOptionPane.YES_OPTION) {
+  if (dialogResult == JOptionPane.YES_OPTION) 
+  {
     try
     {
       //Runtime runtime = Runtime.getRuntime();
@@ -527,6 +560,7 @@ public void CloseApp()
     }
   } else
   {
+    
   }
 }
 
@@ -718,6 +752,7 @@ void pcProcessData(char rxch)
   
           int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
           ch1=data1;
+          print(ch1);
          }
         else if(selectedBoard=="ads1292r")
         {     
