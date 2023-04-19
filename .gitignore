@@ -12,5 +12,5 @@ linux-amd64
 macos-aarch64
 macos-x86_64
 windows-amd64
-
-
+linux-arm
+linux-aarch64
