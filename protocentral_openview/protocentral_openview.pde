@@ -684,12 +684,12 @@ void pcProcessData(char rxch)
       { 
         if(selectedBoard=="healthypi5")
         {
-          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0]; //ecg
           ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
           ces_pkt_ch1_buffer[2] = CES_Pkt_Data_Counter[2];
           ces_pkt_ch1_buffer[3] = CES_Pkt_Data_Counter[3];
   
-          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[4]; //respiration
           ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[5];
           ces_pkt_ch2_buffer[2] = CES_Pkt_Data_Counter[6];
           ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
@@ -739,13 +739,16 @@ void pcProcessData(char rxch)
           redAvg = averageValue(ch5Data);
           irAvg = averageValue(ch4Data);
           ch3 = (ch4Data[arrayIndex3] - irAvg);
+          
+          lblComputedVal3.setText("Respiration: " + global_RespirationRate+ " rpm");
+          lblComputedVal1.setText("Heart Rate: " + global_HeartRate + " bpm");
 
           if(spo2_leadOff == true)
           {
             if(ShowWarningSpo2 == true)
             {
-              lblComputedVal1.setColorValue(color(255,0,0));
-              lblComputedVal1.setText("SpO2 Probe Error");
+              lblComputedVal2.setColorValue(color(255,0,0));
+              lblComputedVal2.setText("SpO2 Probe Error");
               ShowWarningSpo2 = false;
             }
           }
@@ -753,10 +756,10 @@ void pcProcessData(char rxch)
           {
             if(ShowWarningSpo2 == false)
               {
-                lblComputedVal1.setColorValue(color(255,255,255));
+                lblComputedVal2.setColorValue(color(255,255,255));
                 ShowWarningSpo2 = true;
               }
-            lblComputedVal1.setText("SpO2: " + global_spo2 + "%");
+            lblComputedVal2.setText("SpO2: " + global_spo2 + "%");
           }
           
           updateCounter++;
@@ -767,7 +770,7 @@ void pcProcessData(char rxch)
             {
               //global_temp=Temp_Value;
               //Temp_Value=37.2;
-              lblComputedVal2.setText("Temperature: "+temperature+" F");
+              lblComputedVal4.setText("Temperature: "+temperature+" F");
               
             }
             updateCounter=0;
