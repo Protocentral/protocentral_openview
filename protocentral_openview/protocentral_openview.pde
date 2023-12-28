@@ -69,7 +69,8 @@ char CES_Pkt_Data_Counter[] = new char[1000];
 
 char ces_pkt_ch1_buffer[] = new char[4];                    
 char ces_pkt_ch2_buffer[] = new char[4];                   
-char ces_pkt_ch3_buffer[] = new char[4];               
+char ces_pkt_ch3_buffer[] = new char[4]; 
+char ces_pkt_ch4_buffer[] = new char[4];               
 
 char ces_pkt_cv1_buffer[] = new char[4];
 char ces_pkt_cv2_buffer[] = new char[4];
@@ -87,6 +88,11 @@ float[] xdata = new float[windowSize];
 float[] ch1Data = new float[windowSize];
 float[] ch2Data = new float[windowSize];
 float[] ch3Data = new float[windowSize];
+float[] ch4Data = new float[windowSize];
+float[] ch5Data = new float[windowSize];
+float[] ch6Data = new float[windowSize];
+float[] ch7Data = new float[windowSize];
+float[] ch8Data = new float[windowSize];
 
 char ch2DataTag=0;
 
@@ -94,9 +100,11 @@ int computed_val1 = 0;
 int computed_val2 = 0;
 
 double maxe, mine, maxr, minr, maxs, mins;             // To Calculate the Minimum and Maximum of the Buffer
-double ch1, ch2, spo2_ir, spo2_red, ch3, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
+double ch1, ch2, spo2_ir, spo2_red, ch3, ch4, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
 
 boolean startPlot = false;                             // Conditional Variable to start and stop the plot
+boolean spo2_leadOff;
+boolean ShowWarningSpo2=true;
 
 GPlot plot2;
 GPlot plot1;
@@ -107,6 +115,7 @@ int stepsPerCycle = 100;
 int lastStepTime = 0;
 boolean clockwise = true;
 float scale = 5;
+int updateCounter=0;
 
 /************** File Related Variables **********************/
 
@@ -224,6 +233,7 @@ public void setup()
     //xdata[i]=time;
     ch1Data[i] = 0;
     ch2Data[i] = 0;
+    ch3Data[i] = 0;
     
   }
   //time = 0;
@@ -294,6 +304,7 @@ public void makeGUI()
        .setItemHeight(40)
        .setOpen(false)
        
+       .addItem("Protocentral Healthypi 5","healthypi5")
        .addItem("ADS1292R Breakout/Shield","ads1292r")
        .addItem("ADS1293 Breakout/Shield","ads1293")
        .addItem("AFE4490 Breakout/Shield","afe4490")
@@ -639,8 +650,96 @@ void pcProcessData(char rxch)
     {
       if (rxch==CES_CMDIF_PKT_STOP)
       { 
+        if(selectedBoard=="healthypi5")
+        {
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+          ces_pkt_ch1_buffer[2] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch1_buffer[3] = CES_Pkt_Data_Counter[3];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[5];
+          ces_pkt_ch2_buffer[2] = CES_Pkt_Data_Counter[6];
+          ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
+
+          ch2DataTag = CES_Pkt_Data_Counter[8];
+
+          ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[9];
+          ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[10];
+          ces_pkt_ch3_buffer[2] = CES_Pkt_Data_Counter[11];
+          ces_pkt_ch3_buffer[3] = CES_Pkt_Data_Counter[12];
+
+          ces_pkt_ch4_buffer[0] = CES_Pkt_Data_Counter[13];
+          ces_pkt_ch4_buffer[1] = CES_Pkt_Data_Counter[14];
+          ces_pkt_ch4_buffer[2] = CES_Pkt_Data_Counter[15];
+          ces_pkt_ch4_buffer[3] = CES_Pkt_Data_Counter[16];
+          
+          float temperature = (float) (((int) CES_Pkt_Data_Counter[17]| CES_Pkt_Data_Counter[18]<<8)/100.00);                // Temperature
         
-        if(selectedBoard=="afe4490")
+          int global_spo2= (int) (CES_Pkt_Data_Counter[19]);
+          int global_HeartRate = (int) (CES_Pkt_Data_Counter[20]);
+          int global_RespirationRate = (int) (CES_Pkt_Data_Counter[21]);
+
+          int leadstatus =  CES_Pkt_Data_Counter[19];
+
+          leadstatus &= 0x02; 
+
+          if(leadstatus == 0x02) 
+            spo2_leadOff = true;
+          else 
+            spo2_leadOff = false;
+
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8 | ces_pkt_ch1_buffer[2]<<16 | ces_pkt_ch1_buffer[3] <<24;
+          ch1 = (double) data1/1000; //ECG from board is in uV, convert here to mV
+
+          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 | ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3] <<24;
+          ch2 = (double) data2;
+        
+          int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8 | ces_pkt_ch3_buffer[2]<<16 | ces_pkt_ch3_buffer[3] <<24;
+          ch3 = (double) data3;
+
+          int data4 = ces_pkt_ch4_buffer[0] | ces_pkt_ch4_buffer[1]<<8 | ces_pkt_ch4_buffer[2]<<16 | ces_pkt_ch4_buffer[3] <<24;
+          ch4 = (double) data4;
+
+          if(spo2_leadOff == true)
+          {
+            if(ShowWarningSpo2 == true)
+            {
+              lblSPO2.setColorValue(color(255,0,0));
+              lblSPO2.setText("SpO2 Probe Error");
+              ShowWarningSpo2 = false;
+            }
+          }
+          else 
+          {
+            if(ShowWarningSpo2 == false)
+              {
+                lblSPO2.setColorValue(color(255,255,255));
+                ShowWarningSpo2 = true;
+              }
+            lblSPO2.setText("SpO2: " + global_spo2 + "%");
+          }
+          
+          updateCounter++;
+
+          if(updateCounter==100)
+          {
+            if (startPlot)
+            {
+              //global_temp=Temp_Value;
+              //Temp_Value=37.2;
+              lblTemp.setText("Temperature: "+Temp_Value+" F");
+              
+            }
+            updateCounter=0;
+          }
+        
+        
+
+
+        }
+        
+        else if(selectedBoard=="afe4490")
         {
           ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
           ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
