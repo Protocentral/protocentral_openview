@@ -329,25 +329,25 @@ public void makeGUI()
      .updateSize();    
      
      lblComputedVal1 = cp5.addTextlabel("lbl_computer_val1")
-      .setText("Heartrate: 100 bpm")
+      .setText("")
       .setPosition(width-1000,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
      
      lblComputedVal2 = cp5.addTextlabel("lbl_computer_val2")
-      .setText("Spo2: 100%")
+      .setText("")
       .setPosition(width-720,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
       
      lblComputedVal3 = cp5.addTextlabel("lbl_computer_val3")
-      .setText("Respiration: 25 bpm")
+      .setText("")
       .setPosition(width-500,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
       
       lblComputedVal4 = cp5.addTextlabel("lbl_computer_val4")
-      .setText("Body Temp: 88 F")
+      .setText("")
       .setPosition(width-230,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
