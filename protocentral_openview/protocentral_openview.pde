@@ -100,11 +100,9 @@ int computed_val1 = 0;
 int computed_val2 = 0;
 
 double maxe, mine, maxr, minr, maxs, mins;             // To Calculate the Minimum and Maximum of the Buffer
-double ch1, ch2, spo2_ir, spo2_red, ch3, ch4, redAvg, irAvg, ecgAvg, resAvg;  // To store the current ecg value
+double ch1, ch2, spo2_ir, spo2_red, ch3, ch4, redAvg, irAvg, ecgAvg, resAvg,ppg_ir, ppg_red;  // To store the current ecg value
 
 boolean startPlot = false;                             // Conditional Variable to start and stop the plot
-boolean spo2_leadOff;
-boolean ShowWarningSpo2=true;
 
 GPlot plot2;
 GPlot plot1;
@@ -115,7 +113,6 @@ int stepsPerCycle = 100;
 int lastStepTime = 0;
 boolean clockwise = true;
 float scale = 5;
-int updateCounter=0;
 
 /************** File Related Variables **********************/
 
@@ -157,6 +154,9 @@ boolean ShowWarningSpo2=true;
 Textlabel lblSelectedDevice;
 Textlabel lblComputedVal1;
 Textlabel lblComputedVal2;
+Textlabel lblComputedVal3;
+Textlabel lblComputedVal4;
+
 
 Textlabel lblPlot1Scale;
 Textlabel lblPlot2Scale;
@@ -285,24 +285,31 @@ public void makeGUI()
        );
            
       cp5.addScrollableList("portName")
-         .setPosition(20, 10)
+         .setPosition(300, 10)
          .setLabel("Select Port")
-         .setSize(250, 400)
+         .setSize(150, 400)
+         .setColorBackground(color(255,255,255))
+         .setColorLabel(color(0))
+         .setColorValueLabel(color(0))
+         //.setColorForeground(color(0))
          .setFont(createFont("Arial",12))
          .setBarHeight(40)
-         .setOpen(false)
+         .close()
          .setItemHeight(40)
          .addItems(port.list())
          .setType(ScrollableList.DROPDOWN) // currently supported DROPDOWN and LIST
 
        ;    
       cp5.addScrollableList("board")
-       .setPosition(275, 10)
-       .setSize(250, 400)
+       .setPosition(480,10)
+       .setSize(280, 500)
        .setFont(createFont("Arial",12))
        .setBarHeight(40)
        .setItemHeight(40)
        .setOpen(false)
+       .setColorBackground(color(255,255,255))
+       .setColorLabel(color(0))
+       .setColorValueLabel(color(0))
        
        .addItem("Protocentral Healthypi 5","healthypi5")
        .addItem("ADS1292R Breakout/Shield","ads1292r")
@@ -314,30 +321,44 @@ public void makeGUI()
        .addItem("MAX30003 ECG Breakout","max30003")
        .addItem("MAX30001 ECG & BioZ Breakout","max30001")
        
-       .setType(ScrollableList.DROPDOWN);    
+       .setType(ScrollableList.DROPDOWN);   
 
      cp5.addButton("logo")
-     .setPosition(20,height-40)
+     .setPosition(20,15)
      .setImages(loadImage("protocentral.png"), loadImage("protocentral.png"), loadImage("protocentral.png"))
      .updateSize();    
      
      lblComputedVal1 = cp5.addTextlabel("lbl_computer_val1")
-      .setText("")
-      .setPosition(width-400,height-40)
+      .setText("Heartrate: 100 bpm")
+      .setPosition(width-1000,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
      
      lblComputedVal2 = cp5.addTextlabel("lbl_computer_val2")
-      .setText("")
-      .setPosition(width-200,height-40)
+      .setText("Spo2: 100%")
+      .setPosition(width-720,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
+      
+     lblComputedVal3 = cp5.addTextlabel("lbl_computer_val3")
+      .setText("Respiration: 25 bpm")
+      .setPosition(width-500,height-40)
+      .setColorValue(color(255,255,255))
+      .setFont(createFont("verdana",20));
+      
+      lblComputedVal4 = cp5.addTextlabel("lbl_computer_val4")
+      .setText("Body Temp: 88 F")
+      .setPosition(width-230,height-40)
+      .setColorValue(color(255,255,255))
+      .setFont(createFont("verdana",20));
+      
+      
      
-     lblSelectedDevice = cp5.addTextlabel("lblSelectedDevice")
+     /*lblSelectedDevice = cp5.addTextlabel("lblSelectedDevice")
       .setText("--")
       .setPosition(250,height-30)
       .setColorValue(color(255,255,255))
-      .setFont(createFont("verdana",12));
+      .setFont(createFont("verdana",12));*/
      
      /*cp5.addScrollableList("plot1_scale")
        .setPosition(width-170, 60)
@@ -477,6 +498,17 @@ void toggleONOFF(boolean onoff) {
         cp5.get(ScrollableList.class, "board").unlock();
       }
   }
+}
+
+double averageValue(float dataArray[])
+{
+
+  float total = 0;
+  for (int i=0; i<dataArray.length; i++)
+  {
+    total = total + dataArray[i];
+  }
+  return total/dataArray.length;
 }
 
 
@@ -664,12 +696,12 @@ void pcProcessData(char rxch)
 
           ch2DataTag = CES_Pkt_Data_Counter[8];
 
-          ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[9];
+          ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[9]; //IR
           ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[10];
           ces_pkt_ch3_buffer[2] = CES_Pkt_Data_Counter[11];
           ces_pkt_ch3_buffer[3] = CES_Pkt_Data_Counter[12];
 
-          ces_pkt_ch4_buffer[0] = CES_Pkt_Data_Counter[13];
+          ces_pkt_ch4_buffer[0] = CES_Pkt_Data_Counter[13]; //red
           ces_pkt_ch4_buffer[1] = CES_Pkt_Data_Counter[14];
           ces_pkt_ch4_buffer[2] = CES_Pkt_Data_Counter[15];
           ces_pkt_ch4_buffer[3] = CES_Pkt_Data_Counter[16];
@@ -696,17 +728,24 @@ void pcProcessData(char rxch)
           ch2 = (double) data2;
         
           int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8 | ces_pkt_ch3_buffer[2]<<16 | ces_pkt_ch3_buffer[3] <<24;
-          ch3 = (double) data3;
+          ppg_ir  = (double) data3;
 
           int data4 = ces_pkt_ch4_buffer[0] | ces_pkt_ch4_buffer[1]<<8 | ces_pkt_ch4_buffer[2]<<16 | ces_pkt_ch4_buffer[3] <<24;
-          ch4 = (double) data4;
+          ppg_red  = (double) data4;
+          
+          
+          ch4Data[arrayIndex3] = (float)ppg_ir ;
+          ch5Data[arrayIndex3] = (float)ppg_red ;
+          redAvg = averageValue(ch5Data);
+          irAvg = averageValue(ch4Data);
+          ch3 = (ch4Data[arrayIndex3] - irAvg);
 
           if(spo2_leadOff == true)
           {
             if(ShowWarningSpo2 == true)
             {
-              lblSPO2.setColorValue(color(255,0,0));
-              lblSPO2.setText("SpO2 Probe Error");
+              lblComputedVal1.setColorValue(color(255,0,0));
+              lblComputedVal1.setText("SpO2 Probe Error");
               ShowWarningSpo2 = false;
             }
           }
@@ -714,10 +753,10 @@ void pcProcessData(char rxch)
           {
             if(ShowWarningSpo2 == false)
               {
-                lblSPO2.setColorValue(color(255,255,255));
+                lblComputedVal1.setColorValue(color(255,255,255));
                 ShowWarningSpo2 = true;
               }
-            lblSPO2.setText("SpO2: " + global_spo2 + "%");
+            lblComputedVal1.setText("SpO2: " + global_spo2 + "%");
           }
           
           updateCounter++;
@@ -728,15 +767,12 @@ void pcProcessData(char rxch)
             {
               //global_temp=Temp_Value;
               //Temp_Value=37.2;
-              lblTemp.setText("Temperature: "+Temp_Value+" F");
+              lblComputedVal2.setText("Temperature: "+temperature+" F");
               
             }
             updateCounter=0;
           }
         
-        
-
-
         }
         
         else if(selectedBoard=="afe4490")
@@ -948,6 +984,7 @@ void pcProcessData(char rxch)
 
         ch1Data[arrayIndex1] = (float)ch1;
         
+  
         ch3Data[arrayIndex3] = (float)ch3;
 
         arrayIndex1++;
