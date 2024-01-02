@@ -94,6 +94,7 @@ float[] ch6Data = new float[windowSize];
 float[] ch7Data = new float[windowSize];
 float[] ch8Data = new float[windowSize];
 
+boolean skip_flag = false;
 char ch2DataTag=0;
 
 int computed_val1 = 0;
@@ -151,7 +152,7 @@ boolean ECG_leadOff,spo2_leadOff;
 boolean ShowWarning = true;
 boolean ShowWarningSpo2=true;
 
-Textlabel lblSelectedDevice;
+//Textlabel lblSelectedDevice;
 Textlabel lblComputedVal1;
 Textlabel lblComputedVal2;
 Textlabel lblComputedVal3;
@@ -288,18 +289,15 @@ public void makeGUI()
          .setPosition(300, 10)
          .setLabel("Select Port")
          .setSize(150, 400)
-         .setColorBackground(color(255,255,255))
-         .setColorLabel(color(0))
-         .setColorValueLabel(color(0))
          //.setColorForeground(color(0))
          .setFont(createFont("Arial",12))
          .setBarHeight(40)
-         .close()
+         .setOpen(false)
          .setItemHeight(40)
          .addItems(port.list())
          .setType(ScrollableList.DROPDOWN) // currently supported DROPDOWN and LIST
-
-       ;    
+       ;     
+       
       cp5.addScrollableList("board")
        .setPosition(480,10)
        .setSize(280, 500)
@@ -433,7 +431,7 @@ void board(int n) {
     Map itemMap = cp5.get(ScrollableList.class, "board").getItem(n);
     selectedBoard = itemMap.get("value").toString();
     print(selectedBoard);
-    updateDeviceStatus();
+    //updateDeviceStatus();
 }
 
 void plot1_scale(int n) 
@@ -457,10 +455,10 @@ void plot3_scale(int n)
     updatePlot3Scale();
 }
 
-void updateDeviceStatus()
+/*void updateDeviceStatus()
 {
     lblSelectedDevice.setText("Selected device: " + selectedBoard + " on " + selectedPort);
-}
+}*/
 
 void updatePlot1Scale()
 {
@@ -480,7 +478,7 @@ void updatePlot3Scale()
 void portName(int n) {
   println(n, cp5.get(ScrollableList.class, "portName").getItem(n));
   selectedPort = cp5.get(ScrollableList.class, "portName").getItem(n).get("name").toString();
-  updateDeviceStatus();
+  //updateDeviceStatus();
   
 }
 
@@ -682,6 +680,12 @@ void pcProcessData(char rxch)
     {
       if (rxch==CES_CMDIF_PKT_STOP)
       { 
+        //println("arrayIndex1",arrayIndex1);
+        //println("arrayIndex2",arrayIndex2);
+        //println("arrayIndex3",arrayIndex3);
+
+        
+        
         if(selectedBoard=="healthypi5")
         {
           ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0]; //ecg
@@ -695,7 +699,7 @@ void pcProcessData(char rxch)
           ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
 
           ch2DataTag = CES_Pkt_Data_Counter[8];
-
+          
           ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[9]; //IR
           ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[10];
           ces_pkt_ch3_buffer[2] = CES_Pkt_Data_Counter[11];
@@ -986,20 +990,34 @@ void pcProcessData(char rxch)
         //xdata[arrayIndex] = time;
 
         ch1Data[arrayIndex1] = (float)ch1;
-        
-  
         ch3Data[arrayIndex3] = (float)ch3;
 
         arrayIndex1++;
-        
         arrayIndex3++;
         
-        if(ch2DataTag==0x00)
+        //println("ch2DataTag", int(ch2DataTag));
+        if(selectedBoard=="healthypi5")
         {
-          ch2Data[arrayIndex2]= (float)ch2;
-          arrayIndex2++;
-          
+          if (skip_flag == false)
+          {
+            ch2Data[arrayIndex2]= (float)ch2;
+            arrayIndex2++;
+            skip_flag = true;
+          }
+          else
+          {
+            skip_flag = false;
+          }
         }
+        else
+        {
+          if(ch2DataTag==0x00)
+          {
+            ch2Data[arrayIndex2]= (float)ch2;
+            arrayIndex2++;
+          }
+        }
+        
          
         if (arrayIndex1 == windowSize)
         {  
