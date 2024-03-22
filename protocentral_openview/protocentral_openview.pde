@@ -75,7 +75,7 @@ char ces_pkt_ch4_buffer[] = new char[4];
 char ces_pkt_cv1_buffer[] = new char[4];
 char ces_pkt_cv2_buffer[] = new char[4];
 
-int windowSize = 10*128;                                            // Total Size of the buffer
+int windowSize = 5*128;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
 int arrayIndex1=0;
 int arrayIndex2=0;
@@ -979,7 +979,7 @@ void pcProcessData(char rxch)
           ces_pkt_ch3_buffer[2] = CES_Pkt_Data_Counter[11];
           ces_pkt_ch3_buffer[3] = CES_Pkt_Data_Counter[12];
 
-          ces_pkt_ch4_buffer[0] = CES_Pkt_Data_Counter[13]; //red
+          ces_pkt_ch4_buffer[0] = CES_Pkt_Data_Counter[13]; //IR
           ces_pkt_ch4_buffer[1] = CES_Pkt_Data_Counter[14];
           ces_pkt_ch4_buffer[2] = CES_Pkt_Data_Counter[15];
           ces_pkt_ch4_buffer[3] = CES_Pkt_Data_Counter[16];
@@ -1069,35 +1069,13 @@ void pcProcessData(char rxch)
         //xdata[arrayIndex] = time;
 
         ch1Data[arrayIndex1] = (float)ch1;
+        ch2Data[arrayIndex2]= (float)ch2;
         ch3Data[arrayIndex3] = (float)ch3;
 
         arrayIndex1++;
+        arrayIndex2++;
         arrayIndex3++;
-        
-        //println("ch2DataTag", int(ch2DataTag));
-        if(selectedBoard=="healthypi5")
-        {
-          if (skip_flag == false)
-          {
-            ch2Data[arrayIndex2]= (float)ch2;
-            arrayIndex2++;
-            skip_flag = true;
-          }
-          else
-          {
-            skip_flag = false;
-          }
-        }
-        else
-        {
-          if(ch2DataTag==0x00)
-          {
-            ch2Data[arrayIndex2]= (float)ch2;
-            arrayIndex2++;
-          }
-        }
-        
-         
+       
         if (arrayIndex1 == windowSize)
         {  
           arrayIndex1 = 0;
@@ -1113,8 +1091,6 @@ void pcProcessData(char rxch)
           arrayIndex3=0;
         }
         
-                
-
         if (logging == true)
         {
           try 
