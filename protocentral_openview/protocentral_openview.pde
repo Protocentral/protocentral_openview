@@ -75,7 +75,7 @@ char ces_pkt_ch4_buffer[] = new char[4];
 char ces_pkt_cv1_buffer[] = new char[4];
 char ces_pkt_cv2_buffer[] = new char[4];
 
-int windowSize = 6*128;                                            // Total Size of the buffer
+int windowSize = 10*128;                                            // Total Size of the buffer
 int arrayIndex = 0;                                          // Increment Variable for the buffer
 int arrayIndex1=0;
 int arrayIndex2=0;
@@ -318,6 +318,7 @@ public void makeGUI()
        .addItem("tinyGSR Breakout","tinyGSR")
        .addItem("MAX30003 ECG Breakout","max30003")
        .addItem("MAX30001 ECG & BioZ Breakout","max30001")
+       .addItem("HealthyPi Move","healthypi-move")
        
        .setType(ScrollableList.DROPDOWN);   
 
@@ -836,16 +837,20 @@ void pcProcessData(char rxch)
         {     
           ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0];
           ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+          ces_pkt_ch1_buffer[2] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch1_buffer[3] = CES_Pkt_Data_Counter[3];
   
-          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[2];
-          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[3];
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[4];
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[5];
+          ces_pkt_ch2_buffer[2] = CES_Pkt_Data_Counter[6];
+          ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
   
-          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8 | ces_pkt_ch1_buffer[2]<<16 | ces_pkt_ch1_buffer[3]<<24; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
           //data1 <<= 16;
           //data1 >>= 16;
           ch1=data1;
      
-          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
+          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 |ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3]<<24; //reversePacket(CES_Pkt_ECG_Counter, CES_Pkt_ECG_Counter.length-1);
           //data2 <<= 16;
           //data2 >>= 16;
           ch2 = data2;
@@ -954,6 +959,80 @@ void pcProcessData(char rxch)
           
           int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8 | ces_pkt_ch3_buffer[2]<<16 | ces_pkt_ch3_buffer[3] <<24;
           ch3=data3;
+        }
+        else if(selectedBoard=="healthypi-move")
+        {     
+          ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0]; //ecg
+          ces_pkt_ch1_buffer[1] = CES_Pkt_Data_Counter[1];
+          ces_pkt_ch1_buffer[2] = CES_Pkt_Data_Counter[2];
+          ces_pkt_ch1_buffer[3] = CES_Pkt_Data_Counter[3];
+  
+          ces_pkt_ch2_buffer[0] = CES_Pkt_Data_Counter[4]; //respiration
+          ces_pkt_ch2_buffer[1] = CES_Pkt_Data_Counter[5];
+          ces_pkt_ch2_buffer[2] = CES_Pkt_Data_Counter[6];
+          ces_pkt_ch2_buffer[3] = CES_Pkt_Data_Counter[7];
+
+          ch2DataTag = CES_Pkt_Data_Counter[8];
+          
+          ces_pkt_ch3_buffer[0] = CES_Pkt_Data_Counter[9]; //Red
+          ces_pkt_ch3_buffer[1] = CES_Pkt_Data_Counter[10];
+          ces_pkt_ch3_buffer[2] = CES_Pkt_Data_Counter[11];
+          ces_pkt_ch3_buffer[3] = CES_Pkt_Data_Counter[12];
+
+          ces_pkt_ch4_buffer[0] = CES_Pkt_Data_Counter[13]; //red
+          ces_pkt_ch4_buffer[1] = CES_Pkt_Data_Counter[14];
+          ces_pkt_ch4_buffer[2] = CES_Pkt_Data_Counter[15];
+          ces_pkt_ch4_buffer[3] = CES_Pkt_Data_Counter[16];
+          
+          float temperature = (float) (((int) CES_Pkt_Data_Counter[17]| CES_Pkt_Data_Counter[18]<<8)/100.00);                // Temperature
+        
+          int global_spo2= (int) (CES_Pkt_Data_Counter[19]);
+          int global_HeartRate = (int) (CES_Pkt_Data_Counter[20]);
+          int global_RespirationRate = (int) (CES_Pkt_Data_Counter[21]);
+
+          int leadstatus =  CES_Pkt_Data_Counter[19];
+
+          leadstatus &= 0x02; 
+
+          if(leadstatus == 0x02) 
+            spo2_leadOff = true;
+          else 
+            spo2_leadOff = false;
+
+          int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8 | ces_pkt_ch1_buffer[2]<<16 | ces_pkt_ch1_buffer[3] <<24;
+          int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 | ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3] <<24;        
+          int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8 | ces_pkt_ch3_buffer[2]<<16 | ces_pkt_ch3_buffer[3] <<24;
+          int data4 = ces_pkt_ch4_buffer[0] | ces_pkt_ch4_buffer[1]<<8 | ces_pkt_ch4_buffer[2]<<16 | ces_pkt_ch4_buffer[3] <<24;
+          
+          
+          ch1 = (double) data1/1000; //ECG from board is in uV, convert here to mV
+          ch2 = data3;
+          ch3 = data4;
+          //ppg_ir  = (double) data3;
+          //ppg_red  = (double) data4;
+          
+          //ch4Data[arrayIndex3] = (float)ppg_ir ;
+          //ch5Data[arrayIndex3] = (float)ppg_red ;
+          //redAvg = averageValue(ch5Data);
+          //irAvg = averageValue(ch4Data);
+          //ch3 = (ch4Data[arrayIndex3] - irAvg);
+          
+          lblComputedVal3.setText("Respiration: " + global_RespirationRate+ " rpm");
+          lblComputedVal1.setText("Heart Rate: " + global_HeartRate + " bpm");
+          
+          updateCounter++;
+
+          if(updateCounter==100)
+          {
+            if (startPlot)
+            {
+              //global_temp=Temp_Value;
+              //Temp_Value=37.2;
+              lblComputedVal4.setText("Temperature: "+temperature+" F");
+              
+            }
+            updateCounter=0;
+          }
         }
         else if(selectedBoard=="max30001")
         {     
