@@ -745,7 +745,7 @@ void pcProcessData(char rxch)
           irAvg = averageValue(ch4Data);
           ch3 = (ch4Data[arrayIndex3] - irAvg);
           
-          lblComputedVal3.setText("Respiration: " + global_RespirationRate+ " rpm");
+          lblComputedVal3.setText("BPT Status: " + global_RespirationRate+ " rpm");
           lblComputedVal1.setText("Heart Rate: " + global_HeartRate + " bpm");
 
           if(spo2_leadOff == true)
@@ -1017,7 +1017,7 @@ void pcProcessData(char rxch)
           //irAvg = averageValue(ch4Data);
           //ch3 = (ch4Data[arrayIndex3] - irAvg);
           
-          lblComputedVal3.setText("Respiration: " + global_RespirationRate+ " rpm");
+          lblComputedVal3.setText("BPT Status: " + global_RespirationRate+ " rpm");
           lblComputedVal1.setText("Heart Rate: " + global_HeartRate + " bpm");
           
           updateCounter++;
