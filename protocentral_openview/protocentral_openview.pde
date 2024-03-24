@@ -988,7 +988,7 @@ void pcProcessData(char rxch)
         
           int global_spo2= (int) (CES_Pkt_Data_Counter[19]);
           int global_HeartRate = (int) (CES_Pkt_Data_Counter[20]);
-          int global_RespirationRate = (int) (CES_Pkt_Data_Counter[21]);
+          int global_bpt_status = (int) (CES_Pkt_Data_Counter[21]);
 
           int leadstatus =  CES_Pkt_Data_Counter[19];
 
@@ -1004,7 +1004,6 @@ void pcProcessData(char rxch)
           int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8 | ces_pkt_ch3_buffer[2]<<16 | ces_pkt_ch3_buffer[3] <<24;
           int data4 = ces_pkt_ch4_buffer[0] | ces_pkt_ch4_buffer[1]<<8 | ces_pkt_ch4_buffer[2]<<16 | ces_pkt_ch4_buffer[3] <<24;
           
-          
           ch1 = (double) data1/1000; //ECG from board is in uV, convert here to mV
           ch2 = data3;
           ch3 = data4;
@@ -1017,8 +1016,10 @@ void pcProcessData(char rxch)
           //irAvg = averageValue(ch4Data);
           //ch3 = (ch4Data[arrayIndex3] - irAvg);
           
-          lblComputedVal3.setText("BPT Status: " + global_RespirationRate+ " rpm");
+          
           lblComputedVal1.setText("Heart Rate: " + global_HeartRate + " bpm");
+          lblComputedVal2.setText("SpO2: " + global_spo2 + "%");
+          lblComputedVal3.setText("BPT Status: " + global_bpt_status);
           
           updateCounter++;
 
