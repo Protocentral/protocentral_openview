@@ -338,7 +338,7 @@ public void makeGUI()
       .setLabel("Heart Rate");
                 
      lblComputedVal1 = cp5.addTextlabel("lblComputedVal1")
-      .setText("120")
+      .setText("---")
       .setPosition(0,10)
       //.setPosition(width-150, (totalPlotsHeight/3)-10)
       .setColorValue(color(255,255,255))
@@ -356,7 +356,7 @@ public void makeGUI()
       .setLabel("SpO2");
      
      lblComputedVal2 = cp5.addTextlabel("lbl_computer_val2")
-      .setText("98%")
+      .setText("---")
       .setPosition(0,10)
       .setColorValue(color(255,255,255))
       .setGroup(g2)
@@ -379,7 +379,7 @@ public void makeGUI()
       .setFont(createFont("verdana",20));
       
       lblComputedVal4 = cp5.addTextlabel("lbl_computer_val4")
-      .setText("")
+      .setText("---")
       .setPosition(width-230,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
@@ -968,14 +968,14 @@ void pcProcessData(char rxch)
           int global_HeartRate = (int) (CES_Pkt_Data_Counter[20]);
           int global_bpt_status = (int) (CES_Pkt_Data_Counter[21]);
 
-          int leadstatus =  CES_Pkt_Data_Counter[19];
+          /*int leadstatus =  CES_Pkt_Data_Counter[19];
 
           leadstatus &= 0x02; 
 
           if(leadstatus == 0x02) 
             spo2_leadOff = true;
           else 
-            spo2_leadOff = false;
+            spo2_leadOff = false;*/
 
           int data1 = ces_pkt_ch1_buffer[0] | ces_pkt_ch1_buffer[1]<<8 | ces_pkt_ch1_buffer[2]<<16 | ces_pkt_ch1_buffer[3] <<24;
           int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 | ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3] <<24;        
@@ -995,8 +995,11 @@ void pcProcessData(char rxch)
           //ch3 = (ch4Data[arrayIndex3] - irAvg);
           
           
-          lblComputedVal1.setText("Heart Rate: " + global_HeartRate + " bpm");
-          lblComputedVal2.setText("SpO2: " + global_spo2 + "%");
+          lblComputedVal1.setText(global_HeartRate + "");
+          if(global_spo2>0)
+          {
+          lblComputedVal2.setText(global_spo2 + "%");
+          }
           lblComputedVal3.setText("BPT Status: " + global_bpt_status);
           
           updateCounter++;
