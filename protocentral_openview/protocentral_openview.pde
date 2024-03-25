@@ -189,7 +189,7 @@ public void setup()
   
   plot1 = new GPlot(this);
   plot1.setPos(20,60);
-  plot1.setDim(width-40, (totalPlotsHeight/3)-10);
+  plot1.setDim(width-40, (totalPlotsHeight/3));
   plot1.setBgColor(0);
   plot1.setBoxBgColor(0);
   plot1.setLineColor(color(0, 255, 0));
@@ -198,7 +198,7 @@ public void setup()
   
   plot2 = new GPlot(this);
   plot2.setPos(20,(totalPlotsHeight/3+60));
-  plot2.setDim(width-40, (totalPlotsHeight/3)-10);
+  plot2.setDim(width-40, (totalPlotsHeight/3));
   plot2.setBgColor(0);
   plot2.setBoxBgColor(0);
   plot2.setLineColor(color(255, 255, 0));
@@ -207,7 +207,7 @@ public void setup()
 
   plot3 = new GPlot(this);
   plot3.setPos(20,(totalPlotsHeight/3+totalPlotsHeight/3+60));
-  plot3.setDim(width-40, (totalPlotsHeight/3)-10);
+  plot3.setDim(width-40, (totalPlotsHeight/3));
   plot3.setBgColor(0);
   plot3.setBoxBgColor(0);
   plot3.setLineColor(color(0,0,255));
@@ -309,7 +309,7 @@ public void makeGUI()
        .setColorLabel(color(0))
        .setColorValueLabel(color(0))
        
-       .addItem("Protocentral Healthypi 5","healthypi5")
+       .addItem("Healthypi 5","healthypi5")
        .addItem("ADS1292R Breakout/Shield","ads1292r")
        .addItem("ADS1293 Breakout/Shield","ads1293")
        .addItem("AFE4490 Breakout/Shield","afe4490")
@@ -327,21 +327,54 @@ public void makeGUI()
      .setImages(loadImage("protocentral.png"), loadImage("protocentral.png"), loadImage("protocentral.png"))
      .updateSize();    
      
-     lblComputedVal1 = cp5.addTextlabel("lbl_computer_val1")
-      .setText("")
-      .setPosition(width-1000,height-40)
+     Group g1 = cp5.addGroup("g1")
+      .setPosition(width-120, 60+10 )
+      //.setPosition(300,100)
+      .setWidth(100)
+      .disableCollapse() 
+      //.activateEvent(true)
+      .setBackgroundColor(color(255,80))
+      .setBackgroundHeight(50)
+      .setLabel("Heart Rate");
+                
+     lblComputedVal1 = cp5.addTextlabel("lblComputedVal1")
+      .setText("120")
+      .setPosition(0,10)
+      //.setPosition(width-150, (totalPlotsHeight/3)-10)
       .setColorValue(color(255,255,255))
-      .setFont(createFont("verdana",20));
+      .setGroup(g1)
+      .setFont(createFont("verdana",40));
+      
+     Group g2 = cp5.addGroup("g2")
+      .setPosition(width-120, (totalPlotsHeight/3)+60+10)
+      //.setPosition(300,100)
+      .setWidth(100)
+      .disableCollapse() 
+      //.activateEvent(true)
+      .setBackgroundColor(color(255,80))
+      .setBackgroundHeight(50)
+      .setLabel("SpO2");
      
      lblComputedVal2 = cp5.addTextlabel("lbl_computer_val2")
-      .setText("")
-      .setPosition(width-720,height-40)
+      .setText("98%")
+      .setPosition(0,10)
       .setColorValue(color(255,255,255))
-      .setFont(createFont("verdana",20));
+      .setGroup(g2)
+      .setFont(createFont("verdana",40));
+      
+     Group g3 = cp5.addGroup("g3")
+      .setPosition(width-120, (totalPlotsHeight/3+totalPlotsHeight/3+60+10))
+      //.setPosition(0,10)
+      .setWidth(100)
+      .disableCollapse() 
+      //.activateEvent(true)
+      .setBackgroundColor(color(255,80))
+      .setBackgroundHeight(50)
+      .setLabel("Respiration Rate");
       
      lblComputedVal3 = cp5.addTextlabel("lbl_computer_val3")
-      .setText("")
-      .setPosition(width-500,height-40)
+      .setText("20")
+      .setPosition(0,10)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
       
@@ -350,59 +383,6 @@ public void makeGUI()
       .setPosition(width-230,height-40)
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",20));
-      
-      
-     
-     /*lblSelectedDevice = cp5.addTextlabel("lblSelectedDevice")
-      .setText("--")
-      .setPosition(250,height-30)
-      .setColorValue(color(255,255,255))
-      .setFont(createFont("verdana",12));*/
-     
-     /*cp5.addScrollableList("plot1_scale")
-       .setPosition(width-170, 60)
-       .setSize(150, 400)
-       .setFont(createFont("Arial",12))
-       .setBarHeight(30)
-       .setItemHeight(30)
-       .setOpen(false)
-       
-       .setLabel("Change Scale")
-       
-       .addItem("6 secs","6")
-       .addItem("4 secs","4")
-       
-       .setType(ScrollableList.DROPDOWN);
-       
-     cp5.addScrollableList("plot2_scale")
-       .setPosition(width-170, (totalPlotsHeight/3+60))
-       .setSize(150, 400)
-       .setFont(createFont("Arial",12))
-       .setBarHeight(30)
-       .setItemHeight(30)
-       .setOpen(false)
-       
-       .setLabel("Change Scale")
-       
-       .addItem("6 secs","6")
-       .addItem("4 secs","4")
-       
-       .setType(ScrollableList.DROPDOWN);
-       
-      cp5.addScrollableList("plot3_scale")
-       .setPosition(width-170, (totalPlotsHeight/3+totalPlotsHeight/3+60))
-       .setSize(150, 400)
-       .setFont(createFont("Arial",12))
-       .setBarHeight(30)
-       .setItemHeight(30)
-       .setOpen(false)
-       
-       .setLabel("Change Scale")
-       
-       .addItem("6 secs","6")
-       .addItem("4 secs","4")
-       .setType(ScrollableList.DROPDOWN);
-     */
 
      lblPlot1Scale = cp5.addTextlabel("lblPlot1Scale")
       .setText("X: 6 secs | Y: auto")
@@ -421,8 +401,6 @@ public void makeGUI()
       .setPosition(20, (totalPlotsHeight/3+totalPlotsHeight/3+60))
       .setColorValue(color(255,255,255))
       .setFont(createFont("verdana",12));
-      
-     
 }
 
 void board(int n) {
@@ -685,8 +663,6 @@ void pcProcessData(char rxch)
         //println("arrayIndex2",arrayIndex2);
         //println("arrayIndex3",arrayIndex3);
 
-        
-        
         if(selectedBoard=="healthypi5")
         {
           ces_pkt_ch1_buffer[0] = CES_Pkt_Data_Counter[0]; //ecg
@@ -730,7 +706,7 @@ void pcProcessData(char rxch)
           ch1 = (double) data1/1000; //ECG from board is in uV, convert here to mV
 
           int data2 = ces_pkt_ch2_buffer[0] | ces_pkt_ch2_buffer[1]<<8 | ces_pkt_ch2_buffer[2]<<16 | ces_pkt_ch2_buffer[3] <<24;
-          ch2 = (double) data2;
+          ch3 = (double) data2;
         
           int data3 = ces_pkt_ch3_buffer[0] | ces_pkt_ch3_buffer[1]<<8 | ces_pkt_ch3_buffer[2]<<16 | ces_pkt_ch3_buffer[3] <<24;
           ppg_ir  = (double) data3;
@@ -738,15 +714,17 @@ void pcProcessData(char rxch)
           int data4 = ces_pkt_ch4_buffer[0] | ces_pkt_ch4_buffer[1]<<8 | ces_pkt_ch4_buffer[2]<<16 | ces_pkt_ch4_buffer[3] <<24;
           ppg_red  = (double) data4;
           
+          ch2 = ppg_ir;
           
-          ch4Data[arrayIndex3] = (float)ppg_ir ;
-          ch5Data[arrayIndex3] = (float)ppg_red ;
-          redAvg = averageValue(ch5Data);
-          irAvg = averageValue(ch4Data);
-          ch3 = (ch4Data[arrayIndex3] - irAvg);
+          //ch3Data[arrayIndex3] = (float)ppg_ir ;
+          //ch5Data[arrayIndex3] = (float)ppg_red ;
+          //redAvg = averageValue(ch4Data);
+          //irAvg = averageValue(ch3Data);
+          //ch2 = (ch3Data[arrayIndex3] - irAvg);
           
           lblComputedVal3.setText("BPT Status: " + global_RespirationRate+ " rpm");
-          lblComputedVal1.setText("Heart Rate: " + global_HeartRate + " bpm");
+          //lblComputedVal1.setText("Heart Rate: " + global_HeartRate + " bpm");
+          lblComputedVal1.setText(""+global_HeartRate);
 
           if(spo2_leadOff == true)
           {
@@ -764,7 +742,7 @@ void pcProcessData(char rxch)
                 lblComputedVal2.setColorValue(color(255,255,255));
                 ShowWarningSpo2 = true;
               }
-            lblComputedVal2.setText("SpO2: " + global_spo2 + "%");
+            lblComputedVal2.setText(global_spo2 + "%");
           }
           
           updateCounter++;
