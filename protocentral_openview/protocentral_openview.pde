@@ -695,9 +695,9 @@ void pcProcessData(char rxch)
 
           int leadstatus =  CES_Pkt_Data_Counter[19];
 
-          leadstatus &= 0x02; 
+          //leadstatus &= 0x02; 
 
-          if(leadstatus == 0x02) 
+          if(leadstatus == 25) 
             spo2_leadOff = true;
           else 
             spo2_leadOff = false;
@@ -731,7 +731,7 @@ void pcProcessData(char rxch)
             if(ShowWarningSpo2 == true)
             {
               lblComputedVal2.setColorValue(color(255,0,0));
-              lblComputedVal2.setText("SpO2 Probe Error");
+              lblComputedVal2.setText("N/A");
               ShowWarningSpo2 = false;
             }
           }
