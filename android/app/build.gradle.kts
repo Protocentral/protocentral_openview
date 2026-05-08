@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.Base64
 import java.io.FileInputStream
 
 plugins {
@@ -19,7 +20,7 @@ android {
     compileSdk = flutter.compileSdkVersion
     //ndkVersion = flutter.ndkVersion
 
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -43,10 +44,24 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String
+            if (keystorePropertiesFile.exists()) {
+                // use Properties.getProperty which returns null if missing (safer than cast)
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                keystoreProperties.getProperty("storeFile")?.let { storeFile = file(it) }
+                storePassword = keystoreProperties.getProperty("storePassword")
+            } else if (System.getenv("KEYSTORE_BASE64") != null) {
+                // Decode base64 keystore provided via environment (CI secret)
+                val keystoreBytes = Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
+                val keystoreOut = rootProject.file("ci_keystore.jks")
+                keystoreOut.writeBytes(keystoreBytes)
+                storeFile = keystoreOut
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+                storePassword = System.getenv("STORE_PASSWORD")
+            } else {
+                // Leave release signing empty so CI can build without a keystore present
+            }
         }
     }
     buildTypes {
@@ -54,8 +69,15 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now,
             // so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
-            signingConfig = signingConfigs.getByName("release")
+            // Use release signing when key.properties exists or CI keystore env var is set
+            isMinifyEnabled = false      // Note the 'is' prefix
+            isShrinkResources = false    // Note the 'is' prefix
+
+            if (keystorePropertiesFile.exists() || System.getenv("KEYSTORE_BASE64") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
 
