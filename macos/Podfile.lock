@@ -1,5 +1,8 @@
 PODS:
-  - desktop_window (0.0.1):
+  - desktop_window (0.4.3):
+    - FlutterMacOS
+  - flutter_blue_plus_darwin (0.0.2):
+    - Flutter
     - FlutterMacOS
   - flutter_libserialport (0.0.1):
     - FlutterMacOS
@@ -17,18 +20,25 @@ PODS:
     - FlutterMacOS
     - Protobuf (~> 3.5)
     - SwiftProtobuf (~> 1.0)
-  - SwiftProtobuf (1.28.2)
+  - screen_retriever_macos (0.0.1):
+    - FlutterMacOS
+  - SwiftProtobuf (1.37.0)
   - url_launcher_macos (0.0.1):
+    - FlutterMacOS
+  - window_manager (0.2.0):
     - FlutterMacOS
 
 DEPENDENCIES:
   - desktop_window (from `Flutter/ephemeral/.symlinks/plugins/desktop_window/macos`)
+  - flutter_blue_plus_darwin (from `Flutter/ephemeral/.symlinks/plugins/flutter_blue_plus_darwin/darwin`)
   - flutter_libserialport (from `Flutter/ephemeral/.symlinks/plugins/flutter_libserialport/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - geolocator_apple (from `Flutter/ephemeral/.symlinks/plugins/geolocator_apple/darwin`)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
   - reactive_ble_mobile (from `Flutter/ephemeral/.symlinks/plugins/reactive_ble_mobile/darwin`)
+  - screen_retriever_macos (from `Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos`)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
+  - window_manager (from `Flutter/ephemeral/.symlinks/plugins/window_manager/macos`)
 
 SPEC REPOS:
   trunk:
@@ -39,6 +49,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   desktop_window:
     :path: Flutter/ephemeral/.symlinks/plugins/desktop_window/macos
+  flutter_blue_plus_darwin:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_blue_plus_darwin/darwin
   flutter_libserialport:
     :path: Flutter/ephemeral/.symlinks/plugins/flutter_libserialport/macos
   FlutterMacOS:
@@ -49,20 +61,27 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
   reactive_ble_mobile:
     :path: Flutter/ephemeral/.symlinks/plugins/reactive_ble_mobile/darwin
+  screen_retriever_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos
   url_launcher_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
+  window_manager:
+    :path: Flutter/ephemeral/.symlinks/plugins/window_manager/macos
 
 SPEC CHECKSUMS:
-  desktop_window: fb7c4f12c1129f947ac482296b6f14059d57a3c3
-  flutter_libserialport: d1a505fd4b05785f7b50cc7c93b361937ea1c5bd
+  desktop_window: 52be864a782cbdae77ad04ca4547bd62073ced4a
+  flutter_blue_plus_darwin: 20a08bfeaa0f7804d524858d3d8744bcc1b6dbc3
+  flutter_libserialport: 2c523cb8d8203fc6d1b0da88190da31ac970eb93
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  geolocator_apple: 66b711889fd333205763b83c9dcf0a57a28c7afd
+  geolocator_apple: ab36aa0e8b7d7a2d7639b3b4e48308394e8cef5e
   libserialport: 1cb25e66ef3c92a8e59c2ea3820302c3fa2268cd
-  package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
+  package_info_plus: f0052d280d17aa382b932f399edf32507174e870
   Protobuf: 0c5a9e64f38aed73b5d1ff88a20112ce195cf909
-  reactive_ble_mobile: 856183aeda09f2a676bbaecbea8915c3cb1d33df
-  SwiftProtobuf: 4dbaffec76a39a8dc5da23b40af1a5dc01a4c02d
-  url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
+  reactive_ble_mobile: ea97709e18fa6f0b0592909725d7ae7e1c595b64
+  screen_retriever_macos: 452e51764a9e1cdb74b3c541238795849f21557f
+  SwiftProtobuf: 3fafd1b2fb97e6d95ad9c8adb2215da9afec7c83
+  url_launcher_macos: f87a979182d112f911de6820aefddaf56ee9fbfd
+  window_manager: 1d01fa7ac65a6e6f83b965471b1a7fdd3f06166c
 
 PODFILE CHECKSUM: 0d3963a09fc94f580682bd88480486da345dc3f0
 

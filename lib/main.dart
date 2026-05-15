@@ -1,88 +1,61 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:desktop_window/desktop_window.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:window_manager/window_manager.dart';
 
-import 'home.dart';
-import 'ble/ble_logger.dart';
-import 'ble/ble_scanner.dart';
-import 'ble/ble_status_monitor.dart';
-import 'ble/ble_device_connector.dart';
-import 'states/OpenViewBLEProvider.dart';
+import 'app.dart';
+import 'transport/ble_service.dart';
+import 'transport/usb_serial_service.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Platform.isMacOS || Platform.isWindows) {
-    await DesktopWindow.setWindowSize(Size(1280, 800));
+
+  final usb = UsbSerialService();
+  final ble = BleService();
+
+  final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+  if (isDesktop) {
+    await windowManager.ensureInitialized();
+    const opts = WindowOptions(
+      size: Size(1400, 900),
+      minimumSize: Size(900, 600),
+      title: 'OpenView',
+      titleBarStyle: TitleBarStyle.normal,
+    );
+    await windowManager.waitUntilReadyToShow(opts, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+
+    // Intercept window close so we can shut down the serial port before
+    // the Flutter engine tears down. Without this, flutter_libserialport's
+    // read worker can crash mid-read at exit (SIGSEGV in DartWorker).
+    await windowManager.setPreventClose(true);
+    final closer = _CloseHandler(usb: usb, ble: ble);
+    windowManager.addListener(closer);
   }
-  final _bleLogger = BleLogger();
-  final _ble = FlutterReactiveBle();
-  final _scanner = BleScanner(ble: _ble, logMessage: _bleLogger.addToLog);
-  final _connector = BleDeviceConnector(
-    ble: _ble,
-    logMessage: _bleLogger.addToLog,
-  );
-  final _monitor = BleStatusMonitor(_ble);
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider<OpenViewBLEProvider>(
-            create: (context) => OpenViewBLEProvider(ble: _ble)),
-        Provider.value(value: _scanner),
-        Provider.value(value: _monitor),
-        StreamProvider<BleScannerState>(
-          create: (_) => _scanner.state,
-          initialData: BleScannerState(
-            discoveredDevices: [],
-            scanIsInProgress: false,
-          ),
-        ),
-        StreamProvider<BleStatus?>(
-          create: (_) => _monitor.state,
-          initialData: BleStatus.unknown,
-        ),
-        StreamProvider<ConnectionStateUpdate>(
-          create: (_) => _connector.state,
-          initialData: const ConnectionStateUpdate(
-            deviceId: 'Unknown device',
-            connectionState: DeviceConnectionState.disconnected,
-            failure: null,
-          ),
-        ),
-      ],
-      child: MaterialApp(
-          title: 'HealthyPi',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            primarySwatch: Colors.purple,
-            visualDensity: VisualDensity.adaptivePlatformDensity,
-            elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ButtonStyle(
-                    //shape: MaterialStateProperty.resolveWith(getBorder),
-                    )),
-          ),
-          home: HomePage(title: 'OpenView') //HomeScreen(),
-          ),
-    ),
-  );
+
+  runApp(OpenViewApp(usb: usb, ble: ble));
 }
 
-class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
+class _CloseHandler with WindowListener {
+  final UsbSerialService usb;
+  final BleService ble;
+  _CloseHandler({required this.usb, required this.ble});
+
+  bool _shuttingDown = false;
+
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'OpenView',
-      initialRoute: '/',
-      routes: {},
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: HomePage(title: 'OpenView'),
-    );
+  void onWindowClose() async {
+    if (_shuttingDown) return;
+    _shuttingDown = true;
+    // Run synchronous, safe-to-call shutdowns first.
+    usb.shutdownSync();
+    try {
+      await ble.disconnect();
+    } catch (_) {}
+    // Give the engine a tick to absorb the closures before destroy.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await windowManager.destroy();
   }
 }

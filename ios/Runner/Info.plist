@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -23,38 +25,61 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
-    <false/>
-    <key>ITSEncryptionExportComplianceCode</key>
-    <string>Yes</string>
+	<false/>
+	<key>ITSEncryptionExportComplianceCode</key>
+	<string>Yes</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
-    <true/>
-    <key>UIFileSharingEnabled</key>
-    <true/>
+	<true/>
 	<key>NSAppTransportSecurity</key>
-    <dict>
-    	<key>NSAllowsArbitraryLoads</key>
-    	<true/>
-    	<key>NSAllowsArbitraryLoadsInWebContent</key>
-    	<true/>
-    </dict>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>OpenView Connect needs access to Bluetooth for connectivity with the vital monitoring devices</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>OpenView Connect needs access to Bluetooth for connectivity with the vital monitoring devices</string>
 	<key>NSBonjourServices</key>
-    <array>
-    	<string>_dartobservatory._tcp</string>
-    </array>
+	<array>
+		<string>_dartobservatory._tcp</string>
+	</array>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>OpenView Connect needs access to location to scan for nearby vital monitoring devices</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>OpenView Connect needs access to location to scan for nearby vital monitoring devices</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>OpenView Connect needs access to location to scan for nearby vital monitoring devices</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>OpenView Connect needs access to location to scan for nearby vital monitoring devices</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>FlutterSceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
-    <true/>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -74,11 +99,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	<key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
 </dict>
 </plist>

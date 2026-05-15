@@ -38,6 +38,12 @@ dependencies:
   url_launcher: ^6.2.6
   flutter_switch: ^0.3.2
 
+  # --- v3 additions ---
+  go_router: ^14.6.2
+  window_manager: ^0.4.3
+  google_fonts: ^6.2.1
+  flutter_blue_plus: ^1.32.12
+
 dependency_overrides:
   csv: ^5.0.2
   intl: ^0.18.1
