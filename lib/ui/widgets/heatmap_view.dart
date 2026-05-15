@@ -23,8 +23,9 @@ enum HeatmapScale {
 ///   buffer.latest → uint16 pixels → scale → colormap LUT → RGBA → ui.Image
 ///
 /// The image is rendered via [RawImage] so Flutter's normal compositor handles
-/// resize / filterQuality. An overlay [CustomPaint] draws the crosshair when
-/// the cursor is hovering.
+/// resize / filterQuality. An overlay [CustomPaint] draws cell borders and
+/// numeric values (when [showValues] is on and cells are large enough),
+/// plus a crosshair when the cursor is hovering.
 class HeatmapView extends StatefulWidget {
   final MatrixBuffer buffer;
   final MatrixSpec spec;
@@ -32,6 +33,7 @@ class HeatmapView extends StatefulWidget {
   final HeatmapScale scaling;
   final int refreshHz;
   final FilterQuality filterQuality;
+  final bool showValues;
 
   const HeatmapView({
     super.key,
@@ -41,6 +43,7 @@ class HeatmapView extends StatefulWidget {
     this.scaling = HeatmapScale.auto,
     this.refreshHz = 30,
     this.filterQuality = FilterQuality.low,
+    this.showValues = false,
   });
 
   @override
@@ -193,6 +196,19 @@ class _HeatmapViewState extends State<HeatmapView>
                         color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
+              if (widget.showValues && frame != null)
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _GridValuesPainter(
+                      frame: frame,
+                      colorMap: widget.colorMap,
+                      displayMin: _displayMin,
+                      displayMax: _displayMax,
+                      gridColor: theme.colorScheme.onSurface,
+                      serial: _lastFrameSerial,
+                    ),
+                  ),
+                ),
               if (_cursorLocal != null && frame != null)
                 CustomPaint(
                   painter: _CrosshairPainter(
@@ -256,6 +272,113 @@ class _HeatmapViewState extends State<HeatmapView>
   }
 }
 
+/// Draws thin cell borders and the numeric distance value inside each cell.
+///
+/// Skips drawing on cells smaller than ~28×18 px (text would be illegible);
+/// at 8×8 / 16×16 grids this is fine, at 48×32 it auto-suppresses the text
+/// and just shows borders.
+///
+/// Text color picks black or white based on the cell color's luminance so
+/// the digits stay readable across the whole colormap.
+class _GridValuesPainter extends CustomPainter {
+  final MatrixFrame frame;
+  final ColorMap colorMap;
+  final double displayMin;
+  final double displayMax;
+  final Color gridColor;
+  final int serial;
+
+  _GridValuesPainter({
+    required this.frame,
+    required this.colorMap,
+    required this.displayMin,
+    required this.displayMax,
+    required this.gridColor,
+    required this.serial,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final cellW = size.width / frame.cols;
+    final cellH = size.height / frame.rows;
+
+    // Cell borders.
+    final gridPaint = Paint()
+      ..color = gridColor.withValues(alpha: 0.18)
+      ..strokeWidth = 0.5;
+    for (int c = 1; c < frame.cols; c++) {
+      final x = c * cellW;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (int r = 1; r < frame.rows; r++) {
+      final y = r * cellH;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    // Skip text when cells are too small to read.
+    if (cellW < 28 || cellH < 18) return;
+
+    final fontSize = (cellH * 0.34).clamp(8.0, 14.0);
+    final span = (displayMax - displayMin) < 1e-9
+        ? 1.0
+        : (displayMax - displayMin);
+    final lut = colorMap.lut;
+
+    for (int r = 0; r < frame.rows; r++) {
+      for (int c = 0; c < frame.cols; c++) {
+        final v = frame.data[r * frame.cols + c];
+        if (v == 0) continue; // no-return: skip text on the black cell
+
+        // Cell brightness from the LUT entry that was used to color it.
+        double t = (v.toDouble() - displayMin) / span;
+        if (t < 0) t = 0;
+        if (t > 1) t = 1;
+        final idx = (t * 255).round() * 4;
+        final lr = lut[idx];
+        final lg = lut[idx + 1];
+        final lb = lut[idx + 2];
+        final luma = 0.299 * lr + 0.587 * lg + 0.114 * lb;
+        final textColor = luma > 140 ? Colors.black : Colors.white;
+
+        final tp = TextPainter(
+          text: TextSpan(
+            text: _fmt(v),
+            style: TextStyle(
+              color: textColor,
+              fontSize: fontSize,
+              height: 1.0,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        tp.layout(maxWidth: cellW);
+        final tx = c * cellW + (cellW - tp.width) / 2;
+        final ty = r * cellH + (cellH - tp.height) / 2;
+        tp.paint(canvas, Offset(tx, ty));
+      }
+    }
+  }
+
+  /// Compact mm formatting: 0..999 → "n", 1000..9999 → "n.nk", >=10k → "nk".
+  static String _fmt(int v) {
+    if (v < 1000) return '$v';
+    if (v < 10000) return '${(v / 1000).toStringAsFixed(1)}k';
+    return '${(v / 1000).round()}k';
+  }
+
+  @override
+  bool shouldRepaint(_GridValuesPainter old) =>
+      old.serial != serial ||
+      old.colorMap.id != colorMap.id ||
+      old.displayMin != displayMin ||
+      old.displayMax != displayMax ||
+      old.gridColor != gridColor;
+}
+
 class _CrosshairPainter extends CustomPainter {
   final Offset cursor;
   final int cols;
@@ -312,7 +435,7 @@ class _Badge extends StatelessWidget {
         style: TextStyle(
           color: scheme.onSurface,
           fontSize: 11,
-          fontFamily: 'monospace',
+          fontFamily: 'JetBrainsMono',
         ),
       ),
     );

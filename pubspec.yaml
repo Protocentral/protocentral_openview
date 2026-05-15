@@ -41,7 +41,6 @@ dependencies:
   # --- v3 additions ---
   go_router: ^14.6.2
   window_manager: ^0.4.3
-  google_fonts: ^6.2.1
   flutter_blue_plus: ^1.32.12
 
 dependency_overrides:
@@ -86,3 +85,20 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/
+    - assets/branding/
+
+  # Bundled fonts (variable TTF). Family names referenced from AppTheme.
+  # See docs/design or .v3-plan/05-design-system.md for typography roles.
+  fonts:
+    - family: Saira
+      fonts:
+        - asset: assets/fonts/Saira.ttf
+    - family: Jost
+      fonts:
+        - asset: assets/fonts/Jost.ttf
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf

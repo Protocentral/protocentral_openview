@@ -13,8 +13,20 @@ import 'ui/app_routes.dart';
 class OpenViewApp extends StatelessWidget {
   final UsbSerialService usb;
   final BleService ble;
+  final ConnectionController connection;
+  final ScanController scan;
+  final RecordingController recording;
+  final RecordingsBrowserController recordingsBrowser;
 
-  const OpenViewApp({super.key, required this.usb, required this.ble});
+  const OpenViewApp({
+    super.key,
+    required this.usb,
+    required this.ble,
+    required this.connection,
+    required this.scan,
+    required this.recording,
+    required this.recordingsBrowser,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,27 +34,11 @@ class OpenViewApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<UsbSerialService>.value(value: usb),
         ChangeNotifierProvider<BleService>.value(value: ble),
-        ChangeNotifierProxyProvider2<UsbSerialService, BleService,
-            ScanController>(
-          create: (_) => ScanController(usb: usb, ble: ble),
-          update: (_, u, b, prev) => prev ?? ScanController(usb: u, ble: b),
-        ),
-        ChangeNotifierProxyProvider2<UsbSerialService, BleService,
-            ConnectionController>(
-          create: (_) => ConnectionController(usb: usb, ble: ble),
-          update: (_, u, b, prev) =>
-              prev ?? ConnectionController(usb: u, ble: b),
-        ),
-        ChangeNotifierProxyProvider<ConnectionController, RecordingController>(
-          create: (ctx) => RecordingController(
-            connection: ctx.read<ConnectionController>(),
-          ),
-          update: (_, conn, prev) =>
-              prev ?? RecordingController(connection: conn),
-        ),
-        ChangeNotifierProvider<RecordingsBrowserController>(
-          create: (_) => RecordingsBrowserController(),
-        ),
+        ChangeNotifierProvider<ConnectionController>.value(value: connection),
+        ChangeNotifierProvider<ScanController>.value(value: scan),
+        ChangeNotifierProvider<RecordingController>.value(value: recording),
+        ChangeNotifierProvider<RecordingsBrowserController>.value(
+            value: recordingsBrowser),
       ],
       child: MaterialApp.router(
         title: 'OpenView',

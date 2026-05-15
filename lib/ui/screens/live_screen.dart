@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../boards/board_descriptor.dart';
+import '../../boards/matrix_spec.dart';
+import '../../boards/packet_spec.dart';
 import '../../controllers/channel_controller.dart';
 import '../../controllers/connection_controller.dart';
 import '../../controllers/recording_controller.dart';
@@ -26,6 +29,11 @@ class _LiveScreenState extends State<LiveScreen> {
   /// Selected colormap per matrix id (defaults from MatrixSpec).
   final Map<String, ColorMap> _matrixColorMaps = {};
   final Map<String, HeatmapScale> _matrixScales = {};
+  final Map<String, bool> _matrixShowValues = {};
+
+  /// Currently selected board command id (TMF8829: a grid-mode CommandSpec).
+  /// Persists for the lifetime of the screen state.
+  String? _selectedCommandId;
 
   ChannelController? _ensureChart(ConnectionController conn) {
     final desc = conn.descriptor!;
@@ -52,6 +60,13 @@ class _LiveScreenState extends State<LiveScreen> {
 
   HeatmapScale _scaleFor(String matrixId) =>
       _matrixScales[matrixId] ??= HeatmapScale.auto;
+
+  /// Default values-overlay on for small declared grids (≤ 256 cells),
+  /// off for dense ones. User toggle persists per matrix.
+  bool _showValuesFor(String matrixId, int declaredRows, int declaredCols) {
+    return _matrixShowValues[matrixId] ??=
+        (declaredRows * declaredCols) <= 256;
+  }
 
   @override
   void dispose() {
@@ -121,16 +136,32 @@ class _LiveScreenState extends State<LiveScreen> {
       if (chart != null) {
         bodyChildren.add(const SizedBox(height: AppSpacing.sm));
       }
+      if (descriptor.commands.isNotEmpty) {
+        bodyChildren.add(_ModeBar(
+          descriptor: descriptor,
+          activeMatrix: descriptor.matrices.first,
+          selectedId: _selectedCommandId,
+          onSelected: (cmd) {
+            setState(() => _selectedCommandId = cmd.id);
+            conn.sendCommand(cmd);
+          },
+        ));
+        bodyChildren.add(const SizedBox(height: AppSpacing.xs));
+      }
       for (final m in descriptor.matrices) {
         final buf = conn.matrixBuffers[m.id];
         if (buf == null) continue;
+        final showValues = _showValuesFor(m.id, m.rows, m.cols);
         bodyChildren.add(_MatrixControls(
           matrixId: m.id,
           colorMap: _colorMapFor(m.id, m.colorMap),
           scale: _scaleFor(m.id),
+          showValues: showValues,
           onColorMap: (c) =>
               setState(() => _matrixColorMaps[m.id] = c),
           onScale: (s) => setState(() => _matrixScales[m.id] = s),
+          onShowValues: (v) =>
+              setState(() => _matrixShowValues[m.id] = v),
         ));
         bodyChildren.add(const SizedBox(height: AppSpacing.xs));
         bodyChildren.add(Expanded(
@@ -140,6 +171,7 @@ class _LiveScreenState extends State<LiveScreen> {
             spec: m,
             colorMap: _colorMapFor(m.id, m.colorMap),
             scaling: _scaleFor(m.id),
+            showValues: showValues,
           ),
         ));
       }
@@ -170,19 +202,85 @@ class _LiveScreenState extends State<LiveScreen> {
   }
 }
 
+/// Renders the descriptor's `commands` (TMF8829's grid-mode commands) as a
+/// SegmentedButton. Initial highlight defaults to the command whose label
+/// matches the active matrix's declared `rows×cols` (so 48×32 is highlighted
+/// out of the box for the TMF8829 descriptor). No command is sent until the
+/// user actually picks one.
+class _ModeBar extends StatelessWidget {
+  final BoardDescriptor descriptor;
+  final MatrixSpec activeMatrix;
+  final String? selectedId;
+  final void Function(CommandSpec) onSelected;
+
+  const _ModeBar({
+    required this.descriptor,
+    required this.activeMatrix,
+    required this.selectedId,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final commands = descriptor.commands;
+    if (commands.isEmpty) return const SizedBox.shrink();
+
+    // Default highlight: match the active matrix's declared rows×cols
+    // against each command's label. Falls back to the last command.
+    final defaultLabel = '${activeMatrix.rows}×${activeMatrix.cols}';
+    final activeId = selectedId ??
+        (commands.firstWhere(
+          (c) => c.label == defaultLabel,
+          orElse: () => commands.last,
+        )).id;
+
+    // SegmentedButton renders fine up to ~4 segments. If we ever add more
+    // board commands, swap to a MenuAnchor.
+    return Row(
+      children: [
+        Icon(Icons.grid_view_outlined,
+            size: 18, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: AppSpacing.xs),
+        Text('Mode',
+            style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(width: AppSpacing.sm),
+        SegmentedButton<String>(
+          segments: [
+            for (final c in commands)
+              ButtonSegment(value: c.id, label: Text(c.label)),
+          ],
+          selected: {activeId},
+          onSelectionChanged: (s) {
+            final id = s.first;
+            final cmd = commands.firstWhere((c) => c.id == id);
+            onSelected(cmd);
+          },
+          showSelectedIcon: false,
+        ),
+      ],
+    );
+  }
+}
+
 class _MatrixControls extends StatelessWidget {
   final String matrixId;
   final ColorMap colorMap;
   final HeatmapScale scale;
+  final bool showValues;
   final void Function(ColorMap) onColorMap;
   final void Function(HeatmapScale) onScale;
+  final void Function(bool) onShowValues;
 
   const _MatrixControls({
     required this.matrixId,
     required this.colorMap,
     required this.scale,
+    required this.showValues,
     required this.onColorMap,
     required this.onScale,
+    required this.onShowValues,
   });
 
   @override
@@ -223,6 +321,15 @@ class _MatrixControls extends StatelessWidget {
           selected: {scale},
           onSelectionChanged: (s) => onScale(s.first),
           showSelectedIcon: false,
+        ),
+        FilterChip(
+          selected: showValues,
+          onSelected: onShowValues,
+          avatar: Icon(
+            showValues ? Icons.grid_on : Icons.grid_off,
+            size: 16,
+          ),
+          label: const Text('Values'),
         ),
       ],
     );

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/connection_controller.dart';
@@ -142,7 +141,11 @@ class _ConsoleLine extends StatelessWidget {
       }
     }
 
-    final mono = GoogleFonts.jetBrainsMono(fontSize: 12, height: 1.4);
+    const mono = TextStyle(
+      fontFamily: 'JetBrainsMono',
+      fontSize: 12,
+      height: 1.4,
+    );
     final t = entry.when;
     final ts = '${t.hour.toString().padLeft(2, '0')}:'
         '${t.minute.toString().padLeft(2, '0')}:'

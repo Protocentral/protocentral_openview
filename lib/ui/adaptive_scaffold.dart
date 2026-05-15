@@ -102,32 +102,55 @@ class _NavDest {
   const _NavDest(this.path, this.label, this.icon, this.selectedIcon);
 }
 
+/// ProtoCentral brand mark for the NavigationRail's leading slot.
+///
+/// Collapsed: round logo only (~40×40).
+/// Extended: round logo + "OpenView · v3.0 alpha" wordmark.
 class _BrandMark extends StatelessWidget {
   final bool extended;
   const _BrandMark({required this.extended});
 
+  static const _logoRound = 'assets/branding/pc-logo-round.png';
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+
+    // The asset is RGB (no alpha) with black corners around a pale-blue disk.
+    // Clip to a circle so the black corners never show, then wrap in a
+    // theme-aware circular tile so the logo has consistent contrast in
+    // both light and dark themes:
+    //   - dark surface → tile lifts the logo from the dark background
+    //   - light surface → tile gives the pale-blue disk visible weight
+    final logo = Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.6),
+          width: 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(2),
+      child: ClipOval(
+        child: Image.asset(
+          _logoRound,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.medium,
+          semanticLabel: 'ProtoCentral',
+        ),
+      ),
+    );
+
     if (!extended) {
-      return Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: scheme.secondary,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          'PC',
-          style: TextStyle(
-            color: scheme.onSecondary,
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-          ),
-        ),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        child: logo,
       );
     }
+
     // NavigationRail.leading provides an unbounded width slot — give the
     // extended brand mark an explicit width so its Row + Expanded can lay out.
     return SizedBox(
@@ -136,22 +159,7 @@ class _BrandMark extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: scheme.secondary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'PC',
-                style: TextStyle(
-                  color: scheme.onSecondary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
+            logo,
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
@@ -166,7 +174,7 @@ class _BrandMark extends StatelessWidget {
                         ),
                   ),
                   Text(
-                    'v3.0 alpha',
+                    'by ProtoCentral · v3.0 alpha',
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: scheme.onSurfaceVariant,

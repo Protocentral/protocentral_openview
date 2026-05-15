@@ -52,7 +52,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                           : browser.directory!.path,
                       style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
-                          fontFamily: 'monospace'),
+                          fontFamily: 'JetBrainsMono'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -342,7 +342,7 @@ class _DetailDialog extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Text(info.error!,
                       style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
+                          fontFamily: 'JetBrainsMono',
                           color: theme.colorScheme.error)),
                 ],
               ] else ...[
@@ -365,7 +365,7 @@ class _DetailDialog extends StatelessWidget {
                         '${c.id}  ·  ${c.name}  ·  '
                         '${c.samplingRate.toStringAsFixed(0)} Hz  ·  ${c.unit}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                            fontFamily: 'monospace'),
+                            fontFamily: 'JetBrainsMono'),
                       ),
                     )),
               ],
@@ -373,7 +373,7 @@ class _DetailDialog extends StatelessWidget {
               Text(info.file.path,
                   style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
-                      fontFamily: 'monospace')),
+                      fontFamily: 'JetBrainsMono')),
             ],
           ),
         ),

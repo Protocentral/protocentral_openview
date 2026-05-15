@@ -135,7 +135,7 @@ class _Header extends StatelessWidget {
                 name,
                 style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
-                    fontFamily: 'monospace'),
+                    fontFamily: 'JetBrainsMono'),
                 overflow: TextOverflow.ellipsis,
               ),
             ],

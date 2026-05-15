@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import '../boards/board_descriptor.dart';
+import '../boards/packet_spec.dart';
 import '../data/channel_buffer.dart';
 import '../data/matrix_buffer.dart';
 import '../protocol/decoded_packet.dart';
@@ -201,6 +202,28 @@ class ConnectionController extends ChangeNotifier {
     _framer = null;
     _router = null;
     _setStatus(TransportStatus.idle);
+  }
+
+  /// Send a [CommandSpec]'s byte sequence on the active transport.
+  ///
+  /// No-op if there's no active connection. Logs every send to the console
+  /// (tx kind) so it's traceable. Whether the board actually accepts the
+  /// command is up to the firmware — OpenView observes the resulting data
+  /// stream and adapts (e.g. the heatmap auto-resizes on the first frame
+  /// with new rows/cols).
+  Future<void> sendCommand(CommandSpec cmd) async {
+    final transport = _active;
+    if (transport == null || _status != TransportStatus.connected) {
+      _log('tx', 'cmd ${cmd.id} ignored: not connected');
+      return;
+    }
+    try {
+      await transport.send(Uint8List.fromList(cmd.bytes));
+      _log('tx', '${cmd.id} (${cmd.label}) — '
+          '${cmd.bytes.length} B');
+    } catch (e) {
+      _log('error', 'send ${cmd.id}: $e');
+    }
   }
 
   void _onBytes(Uint8List chunk) {

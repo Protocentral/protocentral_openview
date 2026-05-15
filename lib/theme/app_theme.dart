@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'app_shapes.dart';
 import 'signal_colors.dart';
@@ -8,6 +7,11 @@ import 'signal_colors.dart';
 ///
 /// Source: /Users/akw/Downloads/ProtoCentral Design System (2).zip
 ///         references/colors_and_type.css
+///
+/// Fonts are bundled as assets (see `pubspec.yaml`) rather than fetched at
+/// runtime, so the engine's font cache is populated from local TTF files —
+/// this also keeps the app offline-capable and removes a known macOS engine
+/// shutdown crash path triggered by dynamically-loaded fonts.
 class AppTheme {
   AppTheme._();
 
@@ -22,6 +26,12 @@ class AppTheme {
   static const Color pcAccentDk = Color(0xFFB45309);
   static const Color pcAccentLt = Color(0xFFFEF3C7);
   static const Color pcAccentOn = Color(0xFF1F1300);
+
+  // === Font family names — must match pubspec.yaml ===
+  static const String fontDisplay = 'Saira';      // h1/h2, dashboard titles
+  static const String fontUi = 'Jost';            // headlines/titles/labels
+  static const String fontBody = 'Montserrat';    // paragraph + body
+  static const String fontMono = 'JetBrainsMono'; // console, hex dumps
 
   static ThemeData light() => _build(_lightScheme, SignalColors.light);
   static ThemeData dark() => _build(_darkScheme, SignalColors.dark);
@@ -105,10 +115,12 @@ class AppTheme {
       colorScheme: scheme,
       visualDensity: VisualDensity.adaptivePlatformDensity,
       scaffoldBackgroundColor: scheme.surface,
+      // Default font family for any widget that doesn't pick from textTheme.
+      fontFamily: fontBody,
     );
 
     return base.copyWith(
-      textTheme: _textTheme(base.textTheme, scheme),
+      textTheme: _textTheme(scheme),
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
         foregroundColor: scheme.onSurface,
@@ -116,7 +128,8 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 1,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.jost(
+        titleTextStyle: TextStyle(
+          fontFamily: fontUi,
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: scheme.onSurface,
@@ -133,30 +146,44 @@ class AppTheme {
         style: FilledButton.styleFrom(
           shape: AppShapes.buttonShape,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          textStyle: GoogleFonts.jost(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(
+            fontFamily: fontUi,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: scheme.primary,
-          textStyle:
-              GoogleFonts.jost(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(
+            fontFamily: fontUi,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: AppShapes.buttonShape,
           side: BorderSide(color: scheme.outlineVariant),
+          textStyle: const TextStyle(
+            fontFamily: fontUi,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: scheme.surfaceContainerLow,
         selectedIconTheme: IconThemeData(color: scheme.primary),
-        selectedLabelTextStyle: GoogleFonts.jost(
+        selectedLabelTextStyle: TextStyle(
+          fontFamily: fontUi,
           color: scheme.primary,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelTextStyle: GoogleFonts.jost(
+        unselectedLabelTextStyle: TextStyle(
+          fontFamily: fontUi,
           color: scheme.onSurfaceVariant,
         ),
         indicatorColor: scheme.secondaryContainer,
@@ -168,7 +195,8 @@ class AppTheme {
         indicatorColor: scheme.secondaryContainer,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          return GoogleFonts.jost(
+          return TextStyle(
+            fontFamily: fontUi,
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: selected ? scheme.primary : scheme.onSurfaceVariant,
@@ -184,7 +212,8 @@ class AppTheme {
         backgroundColor: scheme.surfaceContainerHigh,
         side: BorderSide(color: scheme.outlineVariant),
         shape: RoundedRectangleBorder(borderRadius: AppShapes.brSm),
-        labelStyle: GoogleFonts.jost(
+        labelStyle: TextStyle(
+          fontFamily: fontUi,
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: scheme.onSurfaceVariant,
@@ -211,38 +240,109 @@ class AppTheme {
     );
   }
 
-  static TextTheme _textTheme(TextTheme base, ColorScheme scheme) {
-    final display = GoogleFonts.sairaTextTheme(base);
-    final body = GoogleFonts.montserratTextTheme(base);
-    final ui = GoogleFonts.jostTextTheme(base);
-    return base.copyWith(
-      displayLarge: display.displayLarge?.copyWith(
-          fontWeight: FontWeight.w700, fontSize: 57, height: 1.05),
-      displayMedium: display.displayMedium?.copyWith(
-          fontWeight: FontWeight.w700, fontSize: 45, height: 1.08),
-      displaySmall: display.displaySmall?.copyWith(
-          fontWeight: FontWeight.w700, fontSize: 36, height: 1.10),
-      headlineLarge: ui.headlineLarge?.copyWith(
-          fontWeight: FontWeight.w600, fontSize: 32, height: 1.18),
-      headlineMedium: ui.headlineMedium?.copyWith(
-          fontWeight: FontWeight.w600, fontSize: 28, height: 1.22),
-      headlineSmall: ui.headlineSmall?.copyWith(
-          fontWeight: FontWeight.w600, fontSize: 24, height: 1.30),
-      titleLarge: ui.titleLarge?.copyWith(
-          fontWeight: FontWeight.w600, fontSize: 22, height: 1.30),
-      titleMedium: ui.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600, fontSize: 16, height: 1.40),
-      titleSmall: ui.titleSmall?.copyWith(
-          fontWeight: FontWeight.w600, fontSize: 14, height: 1.40),
-      bodyLarge: body.bodyLarge?.copyWith(fontSize: 16, height: 1.55),
-      bodyMedium: body.bodyMedium?.copyWith(fontSize: 14, height: 1.55),
-      bodySmall: body.bodySmall?.copyWith(fontSize: 12, height: 1.50),
-      labelLarge: ui.labelLarge?.copyWith(
-          fontWeight: FontWeight.w600, fontSize: 14, height: 1.40),
-      labelMedium: ui.labelMedium?.copyWith(
-          fontWeight: FontWeight.w600, fontSize: 12, height: 1.40),
-      labelSmall: ui.labelSmall?.copyWith(
-          fontWeight: FontWeight.w700, fontSize: 11, height: 1.40),
+  /// Build a TextTheme that mixes the four bundled families per M3 role:
+  ///   display* → Saira (700, all-caps friendly)
+  ///   headline* / title* / label* → Jost (UI)
+  ///   body* → Montserrat (paragraph)
+  ///   (mono → JetBrainsMono is used inline via fontFamily in code/console widgets)
+  static TextTheme _textTheme(ColorScheme scheme) {
+    final onSurface = scheme.onSurface;
+    return TextTheme(
+      // Display — Saira 700
+      displayLarge: TextStyle(
+          fontFamily: fontDisplay,
+          fontSize: 57,
+          height: 1.05,
+          fontWeight: FontWeight.w700,
+          color: onSurface),
+      displayMedium: TextStyle(
+          fontFamily: fontDisplay,
+          fontSize: 45,
+          height: 1.08,
+          fontWeight: FontWeight.w700,
+          color: onSurface),
+      displaySmall: TextStyle(
+          fontFamily: fontDisplay,
+          fontSize: 36,
+          height: 1.10,
+          fontWeight: FontWeight.w700,
+          color: onSurface),
+      // Headline — Jost 600
+      headlineLarge: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 32,
+          height: 1.18,
+          fontWeight: FontWeight.w600,
+          color: onSurface),
+      headlineMedium: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 28,
+          height: 1.22,
+          fontWeight: FontWeight.w600,
+          color: onSurface),
+      headlineSmall: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 24,
+          height: 1.30,
+          fontWeight: FontWeight.w600,
+          color: onSurface),
+      // Title — Jost 600
+      titleLarge: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 22,
+          height: 1.30,
+          fontWeight: FontWeight.w600,
+          color: onSurface),
+      titleMedium: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 16,
+          height: 1.40,
+          fontWeight: FontWeight.w600,
+          color: onSurface),
+      titleSmall: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 14,
+          height: 1.40,
+          fontWeight: FontWeight.w600,
+          color: onSurface),
+      // Body — Montserrat 400
+      bodyLarge: TextStyle(
+          fontFamily: fontBody,
+          fontSize: 16,
+          height: 1.55,
+          fontWeight: FontWeight.w400,
+          color: onSurface),
+      bodyMedium: TextStyle(
+          fontFamily: fontBody,
+          fontSize: 14,
+          height: 1.55,
+          fontWeight: FontWeight.w400,
+          color: onSurface),
+      bodySmall: TextStyle(
+          fontFamily: fontBody,
+          fontSize: 12,
+          height: 1.50,
+          fontWeight: FontWeight.w400,
+          color: onSurface),
+      // Label — Jost 600/700
+      labelLarge: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 14,
+          height: 1.40,
+          fontWeight: FontWeight.w600,
+          color: onSurface),
+      labelMedium: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 12,
+          height: 1.40,
+          fontWeight: FontWeight.w600,
+          color: onSurface),
+      labelSmall: TextStyle(
+          fontFamily: fontUi,
+          fontSize: 11,
+          height: 1.40,
+          fontWeight: FontWeight.w700,
+          color: onSurface),
     );
   }
 }

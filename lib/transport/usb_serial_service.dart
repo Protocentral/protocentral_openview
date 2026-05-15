@@ -133,16 +133,7 @@ class UsbSerialService extends TransportService {
   @override
   Future<void> disconnect() async {
     _setStatus(TransportStatus.disconnecting);
-    await _readerSub?.cancel();
-    _readerSub = null;
-    _reader?.close();
-    _reader = null;
-    try {
-      _port?.close();
-    } catch (_) {}
-    _port?.dispose();
-    _port = null;
-    _target = null;
+    await shutdown();
     _setStatus(TransportStatus.idle);
   }
 
@@ -161,15 +152,32 @@ class UsbSerialService extends TransportService {
     notifyListeners();
   }
 
-  /// Synchronous best-effort shutdown. Safe to call multiple times.
-  /// Run this from a window-close handler before the engine tears down.
-  void shutdownSync() {
-    _readerSub?.cancel();
+  /// Properly-ordered async shutdown. Use this from disconnect handlers and
+  /// from the window-close handler.
+  ///
+  /// Order matters: `flutter_libserialport`'s native read worker is blocked
+  /// in a 100 ms timeout `read()` syscall on the port's FD. If we close the
+  /// port while the worker is mid-read, the FD goes away under it and the
+  /// worker isolate crashes (SIGSEGV in DartWorker, cascading into the
+  /// main thread). The sequence:
+  ///
+  ///   1. cancel the Dart-side subscription (no more events to listeners)
+  ///   2. tell the reader to close (signals its worker to stop)
+  ///   3. wait long enough for the worker's blocking read to time out and
+  ///      the isolate to exit cleanly
+  ///   4. only THEN close the port and dispose it
+  Future<void> shutdown({
+    Duration readerSettleDelay = const Duration(milliseconds: 200),
+  }) async {
+    try {
+      await _readerSub?.cancel();
+    } catch (_) {}
     _readerSub = null;
     try {
       _reader?.close();
     } catch (_) {}
     _reader = null;
+    await Future<void>.delayed(readerSettleDelay);
     try {
       _port?.close();
     } catch (_) {}
@@ -177,6 +185,26 @@ class UsbSerialService extends TransportService {
       _port?.dispose();
     } catch (_) {}
     _port = null;
+    _target = null;
+    _status = TransportStatus.idle;
+  }
+
+  /// Synchronous best-effort fallback for paths that can't await — chiefly
+  /// `dispose()` during ChangeNotifier teardown.
+  ///
+  /// Cancels the subscription and signals the reader to close, but **does
+  /// not** close the port: doing so synchronously is exactly the race that
+  /// crashes the worker isolate. The FD is leaked here; the OS reclaims it
+  /// when the process exits (which is the only context this path runs in).
+  void shutdownSync() {
+    try {
+      _readerSub?.cancel();
+    } catch (_) {}
+    _readerSub = null;
+    try {
+      _reader?.close();
+    } catch (_) {}
+    _reader = null;
     _target = null;
     _status = TransportStatus.idle;
   }
