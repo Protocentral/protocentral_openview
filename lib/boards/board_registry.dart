@@ -1,8 +1,15 @@
 import 'board_descriptor.dart';
 import 'descriptors/ads1292r.dart';
+import 'descriptors/ads1293.dart';
+import 'descriptors/afe4490.dart';
+import 'descriptors/healthypi.dart';
+import 'descriptors/max30001.dart';
 import 'descriptors/max30003.dart';
+import 'descriptors/max86150.dart';
+import 'descriptors/pulse_express.dart';
 import 'descriptors/sensything_cap.dart';
 import 'descriptors/sensything_ox.dart';
+import 'descriptors/tinygsr.dart';
 import 'descriptors/tmf8829.dart';
 
 /// Canonical list of every board OpenView 3 supports.
@@ -13,10 +20,17 @@ class BoardRegistry {
   BoardRegistry._();
 
   static final List<BoardDescriptor> all = [
+    healthypiDescriptor,
     sensythingOxDescriptor,
     sensythingCapDescriptor,
+    ads1293Descriptor,
     ads1292rDescriptor,
+    afe4490Descriptor,
     max30003Descriptor,
+    max30001Descriptor,
+    max86150Descriptor,
+    pulseExpressDescriptor,
+    tinyGsrDescriptor,
     tmf8829Descriptor,
   ];
 
