@@ -5,28 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="efa1097f-5f84-43ba-91da-1f6b19e2922b" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/lib/boards/decoders/ads1293_decoders.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/decoders/afe4490_decoders.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/decoders/healthypi_decoders.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/decoders/max30001_decoders.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/decoders/max86150_decoders.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/decoders/pulse_express_decoders.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/decoders/tinygsr_decoders.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/descriptors/ads1293.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/descriptors/afe4490.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/descriptors/healthypi.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/descriptors/max30001.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/descriptors/max86150.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/descriptors/pulse_express.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/boards/descriptors/tinygsr.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Podfile.lock" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Podfile.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner.xcodeproj/project.pbxproj" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner.xcodeproj/project.pbxproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ios/Flutter/ephemeral/flutter_native_integration.env" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Flutter/ephemeral/flutter_native_integration.env" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/boards/board_registry.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/board_registry.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Podfile.lock" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Podfile.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner.xcodeproj/project.pbxproj" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner.xcodeproj/project.pbxproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/decoders/healthypi_decoders.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/decoders/healthypi_decoders.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/descriptors/healthypi.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/descriptors/healthypi.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/protocol/packet_framer_v3.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/protocol/packet_framer_v3.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

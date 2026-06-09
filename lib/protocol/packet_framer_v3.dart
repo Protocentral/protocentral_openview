@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter/cupertino.dart';
+
 /// ProtoCentral framing protocol — generic v3 framer.
 ///
 /// Wire format:  [0x0A][0xFA][LEN_LSB][LEN_MSB][PKT_TYPE][...PAYLOAD...][0x0B]
@@ -12,9 +14,6 @@ class PacketFramer {
   static const int _sof2 = 0xFA;
   static const int _eof = 0x0B;
 
-  /// Max payload length. Raised from 4096 → 8192 in phase 4 to fit
-  /// 48×32 × uint16 matrix frames (3074 B) plus headroom for future
-  /// dual-layer (distance + confidence) modes.
   static const int _maxPayloadLen = 8192;
   static const Duration _timeout = Duration(milliseconds: 500);
 
@@ -22,6 +21,7 @@ class PacketFramer {
   static const int _stateSof1 = 1;
   static const int _stateSof2 = 2;
   static const int _stateInPacket = 3;
+  static const int _stateExpectEof = 4;
 
   int _state = _stateInit;
   int _pktLen = 0;
@@ -54,6 +54,7 @@ class PacketFramer {
     for (final b in data) {
       _processByte(b, nowMs);
     }
+
     if (_state != _stateInit) {
       _lastByteMs = DateTime.now().millisecondsSinceEpoch;
     }
@@ -61,6 +62,26 @@ class PacketFramer {
 
   void processByte(int byte) {
     _processByte(byte, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  void _emitPacket() {
+    final known = knownTypes.contains(_pktType);
+
+    stats.packetsReceived++;
+
+    if (!known) {
+      stats.unknownType++;
+    }
+
+    onPacket(
+      FramedPacket(
+        pktType: _pktType,
+        payload: Uint8List.fromList(
+          _payload.sublist(0, _payloadIndex),
+        ),
+        known: known,
+      ),
+    );
   }
 
   void _processByte(int rxch, int nowMs) {
@@ -71,6 +92,7 @@ class PacketFramer {
         onError?.call('Packet timeout (${nowMs - _lastByteMs}ms)');
         _resetState();
       }
+
       _lastByteMs = nowMs;
     }
 
@@ -81,6 +103,7 @@ class PacketFramer {
           _lastByteMs = nowMs;
         }
         return;
+
       case _stateSof1:
         if (rxch == _sof2) {
           _state = _stateSof2;
@@ -88,21 +111,26 @@ class PacketFramer {
           _state = _stateInit;
         }
         return;
+
       case _stateSof2:
         _pktLen = rxch;
         _posCounter = 1;
         _state = _stateInPacket;
         return;
+
       case _stateInPacket:
         _posCounter++;
+
         if (_posCounter == 2) {
           _pktLen = (rxch << 8) | _pktLen;
+
           if (_pktLen > _maxPayloadLen || _pktLen <= 0) {
             stats.droppedOversize++;
             onError?.call('Packet length $_pktLen out of range');
             _resetState();
             return;
           }
+
           _payloadIndex = 0;
         } else if (_posCounter == 3) {
           _pktType = rxch;
@@ -111,26 +139,38 @@ class PacketFramer {
             _payload[_payloadIndex++] = rxch;
           }
         } else {
+          // Firmware appears to send:
+          // PAYLOAD -> 0x00 -> 0x0B
+
+          if (rxch == 0x00) {
+            _state = _stateExpectEof;
+            return;
+          }
+
           if (rxch == _eof) {
-            final known = knownTypes.contains(_pktType);
-            stats.packetsReceived++;
-            if (!known) stats.unknownType++;
-            onPacket(FramedPacket(
-              pktType: _pktType,
-              payload: Uint8List.fromList(_payload.sublist(0, _payloadIndex)),
-              known: known,
-            ));
+            _emitPacket();
           } else {
             stats.droppedNoEof++;
             onError?.call(
-                'Expected EOF 0x0B, got 0x${rxch.toRadixString(16)}');
+              'Expected EOF 0x0B, got 0x${rxch.toRadixString(16)}',
+            );
           }
+
           _resetState();
-          if (rxch == _sof1) {
-            _state = _stateSof1;
-            _lastByteMs = nowMs;
-          }
         }
+        return;
+
+      case _stateExpectEof:
+        if (rxch == _eof) {
+          _emitPacket();
+        } else {
+          stats.droppedNoEof++;
+          onError?.call(
+            'Expected 0x0B after 0x00, got 0x${rxch.toRadixString(16)}',
+          );
+        }
+
+        _resetState();
         return;
     }
   }
@@ -174,5 +214,5 @@ class FramerStats {
   @override
   String toString() =>
       'FramerStats(ok=$packetsReceived, unknown=$unknownType, '
-      'noEof=$droppedNoEof, oversize=$droppedOversize, timeout=$droppedTimeout)';
+          'noEof=$droppedNoEof, oversize=$droppedOversize, timeout=$droppedTimeout)';
 }
