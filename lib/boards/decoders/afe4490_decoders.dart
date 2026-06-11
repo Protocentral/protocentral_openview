@@ -13,14 +13,14 @@ import 'shared_codecs.dart';
 /// Payload layout (12 bytes):
 ///   [0-3]    ppgRed  int32 LE  (Red LED photodiode count, 22-bit ADC)
 ///   [4-7]    ppgIr   int32 LE  (IR  LED photodiode count, 22-bit ADC)
-///   [8-9]    HR      int16 LE  (bpm)
-///   [10-11]  SpO2    int16 LE  (% × 1, e.g. 98 → 98 %)
+///   [8]    HR      int8 LE  (bpm)
+///   [9]  SpO2    int8 LE  (% × 1, e.g. 98 → 98 %)
 ///
 DecodedPacket decodeAfe4490Pkt2(Uint8List p) {
   final ppgRed = Codec.readInt32LE(p, 0).toDouble();
   final ppgIr  = Codec.readInt32LE(p, 4).toDouble();
-  final hr     = Codec.readInt16LE(p, 8);
-  final spo2   = Codec.readInt16LE(p, 10);
+  final hr     = p[8];
+  final spo2   = p[9];
 
   return DecodedPacket(
     pktType: 2,

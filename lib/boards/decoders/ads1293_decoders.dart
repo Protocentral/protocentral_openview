@@ -13,14 +13,14 @@ import 'shared_codecs.dart';
 ///   [0-3]    ch1  int32 LE  (Lead I  — LA−RA, sign-extended 24-bit)
 ///   [4-7]    ch2  int32 LE  (Lead II — LL−RA, sign-extended 24-bit)
 ///   [8-11]   ch3  int32 LE  (V1/Lead III, sign-extended 24-bit)
-///   [12-13]  HR   int16 LE  (bpm)
+///   [12-13]  HR   int16 LE  (bpm) - need to enable in the fw
 ///
 /// Lead III can be derived as ch2 − ch1 when only 2 limb leads are used.
 DecodedPacket decodeAds1293Pkt2(Uint8List p) {
   final ch1 = Codec.readInt32LE(p, 0).toDouble();
   final ch2 = Codec.readInt32LE(p, 4).toDouble();
   final ch3 = Codec.readInt32LE(p, 8).toDouble();
-  final hr = Codec.readInt16LE(p, 12);
+  //final hr = Codec.readInt16LE(p, 12);
 
   return DecodedPacket(
     pktType: 2,
@@ -29,8 +29,8 @@ DecodedPacket decodeAds1293Pkt2(Uint8List p) {
       'ch2': [ch2],
       'ch3': [ch3],
     },
-    events: {
+    /*events: {
       'heartRate': hr,
-    },
+    },*/
   );
 }

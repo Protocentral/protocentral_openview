@@ -21,7 +21,6 @@ class BoardRegistry {
 
   static final List<BoardDescriptor> all = [
     healthypiDescriptor,
-    healthypiDescriptorCombined,
     sensythingOxDescriptor,
     sensythingCapDescriptor,
     ads1293Descriptor,

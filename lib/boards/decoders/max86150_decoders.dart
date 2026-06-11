@@ -10,18 +10,14 @@ import 'shared_codecs.dart';
 /// On-device SpO2 and heart rate are computed and appended.
 ///
 /// Payload layout (16 bytes):
-///   [0-3]    ecg     int32 LE  (sign-extended 18-bit ECG ADC value)
-///   [4-7]    ppgRed  int32 LE  (Red  LED count, 18-bit ADC)
-///   [8-11]   ppgIr   int32 LE  (IR   LED count, 18-bit ADC)
-///   [12-13]  HR      int16 LE  (bpm)
-///   [14-15]  SpO2    int16 LE  (%)
+///   [0-1]    ecg     int16 LE  (sign-extended 18-bit ECG ADC value)
+///   [2-3]    ppgRed  int16 LE  (Red  LED count, 18-bit ADC)
+///   [4-5]   ppgIr   int16 LE  (IR   LED count, 18-bit ADC)
 
 DecodedPacket decodeMax86150Pkt2(Uint8List p) {
-  final ecg    = Codec.readInt32LE(p, 0).toDouble();
-  final ppgRed = Codec.readInt32LE(p, 4).toDouble();
-  final ppgIr  = Codec.readInt32LE(p, 8).toDouble();
-  final hr     = Codec.readInt16LE(p, 12);
-  final spo2   = Codec.readInt16LE(p, 14);
+  final ecg    = Codec.readInt16LE(p, 0).toDouble();
+  final ppgRed = Codec.readInt16LE(p, 2).toDouble();
+  final ppgIr  = Codec.readInt16LE(p, 4).toDouble();
 
   return DecodedPacket(
     pktType: 2,
@@ -29,10 +25,6 @@ DecodedPacket decodeMax86150Pkt2(Uint8List p) {
       'ecg':    [ecg],
       'ppgRed': [ppgRed],
       'ppgIr':  [ppgIr],
-    },
-    events: {
-      'heartRate': hr,
-      'spo2':      spo2,
     },
   );
 }

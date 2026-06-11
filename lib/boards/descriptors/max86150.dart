@@ -43,12 +43,11 @@ final BoardDescriptor max86150Descriptor = BoardDescriptor(
   packets: [
     PacketSpec(
       pktType: 2,
-      label: 'ECG/PPG Red+IR/HR/SpO2',
-      expectedPayloadLength: 16,
+      label: 'ECG/PPG Red+IR',
+      expectedPayloadLength: 6,
       decode: decodeMax86150Pkt2,
     ),
   ],
   notes: 'Maxim MAX86150 integrated single-lead ECG (18-bit) and dual-LED '
-      'PPG (18-bit Red + IR) AFE. ECG and PPG share the same packet. '
-      'SpO2 and heart rate computed on-device.',
+      'PPG (18-bit Red + IR) AFE. ECG and PPG share the same packet.',
 );

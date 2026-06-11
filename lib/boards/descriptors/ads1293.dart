@@ -44,12 +44,11 @@ final BoardDescriptor ads1293Descriptor = BoardDescriptor(
   packets: [
     PacketSpec(
       pktType: 2,
-      label: '3-Lead ECG/HR',
-      expectedPayloadLength: 14,
+      label: '3-Lead ECG',
+      expectedPayloadLength: 12,
       decode: decodeAds1293Pkt2,
     ),
   ],
   notes: 'TI ADS1293 3-channel 24-bit ECG AFE. Supports 3-lead and 5-lead '
-      'configurations (Lead I, Lead II, V1). Heart rate derived on-device '
-      'via QRS detection.',
+      'configurations (Lead I, Lead II, V1).',
 );

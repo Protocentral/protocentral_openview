@@ -35,8 +35,8 @@ final BoardDescriptor pulseExpressDescriptor = BoardDescriptor(
   packets: [
     PacketSpec(
       pktType: 2,
-      label: 'PPG IR+Red/HR/SpO2',
-      expectedPayloadLength: 9,
+      label: 'PPG IR+Red',
+      expectedPayloadLength: 4,
       decode: decodePulseExpressPkt2,
     ),
   ],

@@ -13,15 +13,15 @@ import 'shared_codecs.dart';
 /// Payload layout (9 bytes):
 ///   [0-1]   ppgIr   int16 LE  (IR  LED raw count, normalised to 16-bit)
 ///   [2-3]   ppgRed  int16 LE  (Red LED raw count, normalised to 16-bit)
-///   [4-5]   HR      int16 LE  (bpm, from on-chip algorithm)
-///   [6-7]   SpO2    int16 LE  (%, from on-chip algorithm)
-///   [8]     status  uint8     (0x00 = OK; bit flags for lead-off / low-confidence)
+///   [4-5]   HR      int16 LE  (bpm, from on-chip algorithm) - need to enable in the fw
+///   [6-7]   SpO2    int16 LE  (%, from on-chip algorithm) - need to enable in the fw
+///   [8]     status  uint8     (0x00 = OK; bit flags for lead-off / low-confidence) - need to enable in the fw
 
 DecodedPacket decodePulseExpressPkt2(Uint8List p) {
   final ppgIr  = Codec.readInt16LE(p, 0).toDouble();
   final ppgRed = Codec.readInt16LE(p, 2).toDouble();
-  final hr     = Codec.readInt16LE(p, 4);
-  final spo2   = Codec.readInt16LE(p, 6);
+  //final hr     = Codec.readInt16LE(p, 4);
+  //final spo2   = Codec.readInt16LE(p, 6);
 
   return DecodedPacket(
     pktType: 2,
@@ -29,9 +29,9 @@ DecodedPacket decodePulseExpressPkt2(Uint8List p) {
       'ppgIr':  [ppgIr],
       'ppgRed': [ppgRed],
     },
-    events: {
+    /*events: {
       'heartRate': hr,
       'spo2':      spo2,
-    },
+    },*/
   );
 }

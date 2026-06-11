@@ -36,7 +36,7 @@ final BoardDescriptor afe4490Descriptor = BoardDescriptor(
     PacketSpec(
       pktType: 2,
       label: 'PPG Red+IR/HR/SpO2',
-      expectedPayloadLength: 12,
+      expectedPayloadLength: 10,
       decode: decodeAfe4490Pkt2,
     ),
   ],
