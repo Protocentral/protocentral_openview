@@ -6,11 +6,19 @@
   <component name="ChangeListManager">
     <list default="true" id="efa1097f-5f84-43ba-91da-1f6b19e2922b" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/settings.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/android/settings.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/linux/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/linux/flutter/generated_plugins.cmake" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/windows/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/windows/flutter/generated_plugins.cmake" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/board_registry.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/board_registry.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/decoders/ads1293_decoders.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/decoders/ads1293_decoders.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/decoders/afe4490_decoders.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/decoders/afe4490_decoders.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/decoders/healthypi_decoders.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/decoders/healthypi_decoders.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/decoders/max86150_decoders.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/decoders/max86150_decoders.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/decoders/pulse_express_decoders.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/decoders/pulse_express_decoders.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/decoders/shared_codecs.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/decoders/shared_codecs.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/descriptors/ads1293.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/descriptors/ads1293.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/descriptors/afe4490.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/descriptors/afe4490.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/descriptors/healthypi.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/descriptors/healthypi.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/descriptors/max86150.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/descriptors/max86150.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/boards/descriptors/pulse_express.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/boards/descriptors/pulse_express.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/macos/Podfile.lock" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Podfile.lock" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

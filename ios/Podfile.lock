@@ -1,78 +1,16 @@
 PODS:
-  - file_saver (0.0.1):
-    - Flutter
   - Flutter (1.0.0)
-  - geolocator_apple (1.2.0):
-    - Flutter
-    - FlutterMacOS
-  - package_info_plus (0.4.5):
-    - Flutter
-  - path_provider_foundation (0.0.1):
-    - Flutter
-    - FlutterMacOS
-  - permission_handler_apple (9.3.0):
-    - Flutter
-  - Protobuf (3.29.5)
-  - reactive_ble_mobile (0.0.1):
-    - Flutter
-    - FlutterMacOS
-    - Protobuf (~> 3.5)
-    - SwiftProtobuf (~> 1.0)
-  - share_plus (0.0.1):
-    - Flutter
-  - SwiftProtobuf (1.30.0)
-  - url_launcher_ios (0.0.1):
-    - Flutter
 
 DEPENDENCIES:
-  - file_saver (from `.symlinks/plugins/file_saver/ios`)
   - Flutter (from `Flutter`)
-  - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
-  - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
-  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
-  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
-  - reactive_ble_mobile (from `.symlinks/plugins/reactive_ble_mobile/darwin`)
-  - share_plus (from `.symlinks/plugins/share_plus/ios`)
-  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
-
-SPEC REPOS:
-  trunk:
-    - Protobuf
-    - SwiftProtobuf
 
 EXTERNAL SOURCES:
-  file_saver:
-    :path: ".symlinks/plugins/file_saver/ios"
   Flutter:
     :path: Flutter
-  geolocator_apple:
-    :path: ".symlinks/plugins/geolocator_apple/darwin"
-  package_info_plus:
-    :path: ".symlinks/plugins/package_info_plus/ios"
-  path_provider_foundation:
-    :path: ".symlinks/plugins/path_provider_foundation/darwin"
-  permission_handler_apple:
-    :path: ".symlinks/plugins/permission_handler_apple/ios"
-  reactive_ble_mobile:
-    :path: ".symlinks/plugins/reactive_ble_mobile/darwin"
-  share_plus:
-    :path: ".symlinks/plugins/share_plus/ios"
-  url_launcher_ios:
-    :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  file_saver: 503e386464dbe118f630e17b4c2e1190fa0cf808
-  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  geolocator_apple: 66b711889fd333205763b83c9dcf0a57a28c7afd
-  package_info_plus: c0502532a26c7662a62a356cebe2692ec5fe4ec4
-  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
-  Protobuf: 164aea2ae380c3951abdc3e195220c01d17400e0
-  reactive_ble_mobile: 856183aeda09f2a676bbaecbea8915c3cb1d33df
-  share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
-  SwiftProtobuf: 3697407f0d5b23bedeba9c2eaaf3ec6fdff69349
-  url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
 
-PODFILE CHECKSUM: 26fd562d5c28ae6e736cd3e282e3cab582e4b629
+PODFILE CHECKSUM: abd3071c3798147190079d32cd7c9d7d9f0df55a
 
 COCOAPODS: 1.16.2

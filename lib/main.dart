@@ -1,88 +1,110 @@
-import 'dart:io';
+ import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:desktop_window/desktop_window.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:window_manager/window_manager.dart';
 
-import 'home.dart';
-import 'ble/ble_logger.dart';
-import 'ble/ble_scanner.dart';
-import 'ble/ble_status_monitor.dart';
-import 'ble/ble_device_connector.dart';
-import 'states/OpenViewBLEProvider.dart';
+import 'app.dart';
+import 'controllers/connection_controller.dart';
+import 'controllers/recording_controller.dart';
+import 'controllers/recordings_browser_controller.dart';
+import 'controllers/scan_controller.dart';
+import 'recording/recording_models.dart';
+import 'transport/ble_service.dart';
+import 'transport/usb_serial_service.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Platform.isMacOS || Platform.isWindows) {
-    await DesktopWindow.setWindowSize(Size(1280, 800));
+
+  // Build the full controller graph here so the close handler can reach
+  // them directly. OpenViewApp registers them as Provider.value.
+  final usb = UsbSerialService();
+  final ble = BleService();
+  final connection = ConnectionController(usb: usb, ble: ble);
+  final scan = ScanController(usb: usb, ble: ble);
+  final recording = RecordingController(connection: connection);
+  final recordingsBrowser = RecordingsBrowserController();
+
+  final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+  if (isDesktop) {
+    await windowManager.ensureInitialized();
+    const opts = WindowOptions(
+      size: Size(1400, 900),
+      minimumSize: Size(900, 600),
+      title: 'OpenView',
+      titleBarStyle: TitleBarStyle.normal,
+    );
+    await windowManager.waitUntilReadyToShow(opts, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+
+    // Intercept close so we can shut things down properly and avoid the
+    // Flutter engine teardown crash (see _CloseHandler).
+    await windowManager.setPreventClose(true);
+    final closer = _CloseHandler(
+      usb: usb,
+      ble: ble,
+      recording: recording,
+    );
+    windowManager.addListener(closer);
   }
-  final _bleLogger = BleLogger();
-  final _ble = FlutterReactiveBle();
-  final _scanner = BleScanner(ble: _ble, logMessage: _bleLogger.addToLog);
-  final _connector = BleDeviceConnector(
-    ble: _ble,
-    logMessage: _bleLogger.addToLog,
-  );
-  final _monitor = BleStatusMonitor(_ble);
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider<OpenViewBLEProvider>(
-            create: (context) => OpenViewBLEProvider(ble: _ble)),
-        Provider.value(value: _scanner),
-        Provider.value(value: _monitor),
-        StreamProvider<BleScannerState>(
-          create: (_) => _scanner.state,
-          initialData: BleScannerState(
-            discoveredDevices: [],
-            scanIsInProgress: false,
-          ),
-        ),
-        StreamProvider<BleStatus?>(
-          create: (_) => _monitor.state,
-          initialData: BleStatus.unknown,
-        ),
-        StreamProvider<ConnectionStateUpdate>(
-          create: (_) => _connector.state,
-          initialData: const ConnectionStateUpdate(
-            deviceId: 'Unknown device',
-            connectionState: DeviceConnectionState.disconnected,
-            failure: null,
-          ),
-        ),
-      ],
-      child: MaterialApp(
-          title: 'HealthyPi',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            primarySwatch: Colors.purple,
-            visualDensity: VisualDensity.adaptivePlatformDensity,
-            elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ButtonStyle(
-                    //shape: MaterialStateProperty.resolveWith(getBorder),
-                    )),
-          ),
-          home: HomePage(title: 'OpenView') //HomeScreen(),
-          ),
-    ),
-  );
+
+  runApp(OpenViewApp(
+    usb: usb,
+    ble: ble,
+    connection: connection,
+    scan: scan,
+    recording: recording,
+    recordingsBrowser: recordingsBrowser,
+  ));
 }
 
-class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
+class _CloseHandler with WindowListener {
+  final UsbSerialService usb;
+  final BleService ble;
+  final RecordingController recording;
+  _CloseHandler({
+    required this.usb,
+    required this.ble,
+    required this.recording,
+  });
+
+  bool _shuttingDown = false;
+
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'OpenView',
-      initialRoute: '/',
-      routes: {},
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: HomePage(title: 'OpenView'),
-    );
+  void onWindowClose() async {
+    if (_shuttingDown) return;
+    _shuttingDown = true;
+
+    // 1. Finalise an in-flight recording. Without this, the trailing INDX
+    //    block never gets written and the file's `totalSamples` / duration
+    //    headers stay zero. Data up to the last 64 KB block is already on
+    //    disk regardless, so this is about cleanliness, not data loss.
+    if (recording.state == RecordingState.recording) {
+      try {
+        await recording.stop();
+      } catch (_) {}
+    }
+
+    // 2. Wait for the libserialport read worker to exit BEFORE closing the
+    //    port FD. See UsbSerialService.shutdown for the why.
+    try {
+      await usb.shutdown();
+    } catch (_) {}
+    try {
+      await ble.disconnect();
+    } catch (_) {}
+
+    // 3. Skip the Flutter engine teardown.
+    //
+    //    `windowManager.destroy()` triggers `[NSApplication terminate:]` →
+    //    `flutter::Shell::~Shell()` → `SkGraphics::PurgeFontCache()` →
+    //    `SkStrike::~SkStrike()` → `TFont::~TFont()` → `objc_release` on a
+    //    freed pointer. That's a known crash in Flutter's macOS engine
+    //    destructor in the font cache cleanup path.
+    //
+    //    Nothing useful happens between our shutdown completing and that
+    //    crash, so we hard-exit. The OS reclaims FDs, isolates, memory.
+    exit(0);
   }
 }

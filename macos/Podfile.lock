@@ -1,68 +1,34 @@
 PODS:
-  - desktop_window (0.0.1):
-    - FlutterMacOS
   - flutter_libserialport (0.0.1):
     - FlutterMacOS
     - libserialport
   - FlutterMacOS (1.0.0)
-  - geolocator_apple (1.2.0):
-    - Flutter
-    - FlutterMacOS
   - libserialport (0.1.1)
-  - package_info_plus (0.0.1):
-    - FlutterMacOS
-  - Protobuf (3.29.1)
-  - reactive_ble_mobile (0.0.1):
-    - Flutter
-    - FlutterMacOS
-    - Protobuf (~> 3.5)
-    - SwiftProtobuf (~> 1.0)
-  - SwiftProtobuf (1.28.2)
-  - url_launcher_macos (0.0.1):
+  - window_manager (0.2.0):
     - FlutterMacOS
 
 DEPENDENCIES:
-  - desktop_window (from `Flutter/ephemeral/.symlinks/plugins/desktop_window/macos`)
   - flutter_libserialport (from `Flutter/ephemeral/.symlinks/plugins/flutter_libserialport/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
-  - geolocator_apple (from `Flutter/ephemeral/.symlinks/plugins/geolocator_apple/darwin`)
-  - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
-  - reactive_ble_mobile (from `Flutter/ephemeral/.symlinks/plugins/reactive_ble_mobile/darwin`)
-  - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
+  - window_manager (from `Flutter/ephemeral/.symlinks/plugins/window_manager/macos`)
 
 SPEC REPOS:
   trunk:
     - libserialport
-    - Protobuf
-    - SwiftProtobuf
 
 EXTERNAL SOURCES:
-  desktop_window:
-    :path: Flutter/ephemeral/.symlinks/plugins/desktop_window/macos
   flutter_libserialport:
     :path: Flutter/ephemeral/.symlinks/plugins/flutter_libserialport/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
-  geolocator_apple:
-    :path: Flutter/ephemeral/.symlinks/plugins/geolocator_apple/darwin
-  package_info_plus:
-    :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
-  reactive_ble_mobile:
-    :path: Flutter/ephemeral/.symlinks/plugins/reactive_ble_mobile/darwin
-  url_launcher_macos:
-    :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
+  window_manager:
+    :path: Flutter/ephemeral/.symlinks/plugins/window_manager/macos
 
 SPEC CHECKSUMS:
-  desktop_window: fb7c4f12c1129f947ac482296b6f14059d57a3c3
   flutter_libserialport: d1a505fd4b05785f7b50cc7c93b361937ea1c5bd
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  geolocator_apple: 66b711889fd333205763b83c9dcf0a57a28c7afd
   libserialport: 1cb25e66ef3c92a8e59c2ea3820302c3fa2268cd
-  package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
-  Protobuf: 0c5a9e64f38aed73b5d1ff88a20112ce195cf909
-  reactive_ble_mobile: 856183aeda09f2a676bbaecbea8915c3cb1d33df
-  SwiftProtobuf: 4dbaffec76a39a8dc5da23b40af1a5dc01a4c02d
-  url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
+  window_manager: 3a1844359a6295ab1e47659b1a777e36773cd6e8
 
 PODFILE CHECKSUM: 0d3963a09fc94f580682bd88480486da345dc3f0
 
