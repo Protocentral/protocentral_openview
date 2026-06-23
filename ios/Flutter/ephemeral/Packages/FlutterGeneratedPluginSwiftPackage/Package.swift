@@ -16,9 +16,9 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "url_launcher_ios", path: "../.packages/url_launcher_ios-6.4.1"),
-        .package(name: "permission_handler_apple", path: "../.packages/permission_handler_apple-9.4.9"),
+        .package(name: "permission_handler_apple", path: "../.packages/permission_handler_apple-9.4.10"),
         .package(name: "package_info_plus", path: "../.packages/package_info_plus-9.0.1"),
-        .package(name: "geolocator_apple", path: "../.packages/geolocator_apple-2.3.13"),
+        .package(name: "geolocator_apple", path: "../.packages/geolocator_apple-2.3.14"),
         .package(name: "reactive_ble_mobile", path: "../.packages/reactive_ble_mobile-5.5.0"),
         .package(name: "flutter_blue_plus_darwin", path: "../.packages/flutter_blue_plus_darwin-7.0.3"),
         .package(name: "FlutterFramework", path: "../.packages/FlutterFramework")
