@@ -1,0 +1,104 @@
+name: OpenView
+description: BLE companion app for use with ProtoCentral breakout boards and modules
+
+version: 2.1.19+130
+
+environment:
+  sdk: ^3.3.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.6
+  http: ^1.2.1
+  path_provider: ^2.0.11
+  flutter_reactive_ble: ^5.3.1
+  geolocator: ^14.0.0
+  intl: ^0.20.1
+
+  permission_handler: ^12.0.0+1
+  flutter_form_builder: ^10.0.1
+  form_builder_validators: ^11.1.2
+  progress_indicators: ^1.0.0
+  sn_progress_dialog: ^1.0.8
+  provider: ^6.0.3
+  convert: ^3.0.2
+  flutter_launcher_icons: ^0.14.3
+
+  flutter_spinkit: ^5.1.0
+  signal_strength_indicator: ^0.4.1
+  flutter_libserialport: ^0.6.0
+  fl_chart: ^0.71.0
+  package_info_plus: ^9.0.0
+  csv: ^6.0.0
+  desktop_window: ^0.4.0
+  simple_html_css: ^5.0.0
+  flutter_html: ^3.0.0-beta.2
+  url_launcher: ^6.2.6
+  flutter_switch: ^0.3.2
+
+  # --- v3 additions ---
+  go_router: ^14.6.2
+  window_manager: ^0.4.3
+  flutter_blue_plus: ^1.32.12
+
+dependency_overrides:
+  csv: ^5.0.2
+  intl: ^0.18.1
+  # because of https://github.com/jpnurmi/flutter_libserialport/issues/128
+  #flutter_libserialport:
+  #  git:
+  #    url: https://github.com/NeariX67/flutter_libserialport
+  #    ref: main
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  test: ^1.24.9
+
+
+flutter_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/pc_logo_round.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/icon/pc_logo_round.png"
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/
+    - assets/branding/
+
+  # Bundled fonts (variable TTF). Family names referenced from AppTheme.
+  # See docs/design or .v3-plan/05-design-system.md for typography roles.
+  fonts:
+    - family: Saira
+      fonts:
+        - asset: assets/fonts/Saira.ttf
+    - family: Jost
+      fonts:
+        - asset: assets/fonts/Jost.ttf
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
