@@ -2,10 +2,10 @@
 
 ![Protocentral Logo](docs/images/protocentral.png)
 
-# OpenView 2
+# OpenView 3
 
 
-Openview 2 is designed as a companion application to receive data from various Protocentral boards. It can be used to visualize the data in real-time and also store the data in CSV format. 
+OpenView 3 is a companion application to receive data from various ProtoCentral boards. It visualizes the data in real-time and records it to `.hpd` (BIOSIG) files for later replay.
 
 ![Openview Desktop App](docs/images/openview-screen-desktop.png)
 
@@ -13,28 +13,35 @@ Openview 2 is designed as a companion application to receive data from various P
 
 </div>
 
-OpenView 2 will replace the existing [OpenView app](https://github.com/Protocentral/protocentral_openview2) written in Processing and will be the primary supported app for all Protocentral boards. OpenView 2 is based on the more modern [Flutter framework](https://flutter.dev/) and is available for Windows, MacOS, Linux, Android, and iOS.
+OpenView 3 is the Flutter rewrite of the original [OpenView app](https://github.com/Protocentral/protocentral_openview2) and is the primary supported app for all ProtoCentral boards. Built on the [Flutter framework](https://flutter.dev/), it runs on Windows, macOS, Linux, Android, and iOS.
 
-The Android and iOS mobile versions use BLE to connect to the boards (when used with a microcontroller with BLE support), while the desktop version uses USB/UART to connect to the boards. 
+OpenView 3 connects over three transports:
+
+* **USB/UART** — desktop only; supported by every board.
+* **BLE** — currently available only for the **Sensything** family.
+* **Wi-Fi (TCP)** — currently available only for the **Sensything** and **HealthyPi** families.
 
 ## Features:
 
 * Multiple boards, one unified interface
 * Mobile platforms: Android and iOS
-* Desktop platforms: Windows, MacOS, and Linux
+* Desktop platforms: Windows, macOS, and Linux
+* USB, BLE, and Wi-Fi connectivity
 * Code development environment: [Flutter](https://flutter.dev/)
-* Data storage option to CSV files
-* You can add your own board by editing the source (for now, in the future we will add a more configurable way to add new boards)
+* Records to `.hpd` (BIOSIG) files, round-trip compatible with HealthyPi Studio
+* You can add your own board by declaring a descriptor in the source (see `lib/boards/`)
 
 ## Supported Boards
 * [HealthyPi 5](https://protocentral.com/product/healthypi-5-vital-signs-monitoring-hat-kit/)
-* [HealthyPi Move](https://www.crowdsupply.com/protocentral/healthypi-move)
+* ProtoCentral Sensything (OX and CAP)
+* AFE breakouts: ADS1292R, ADS1293, AFE4490, MAX30001, MAX30003, MAX86150, Pulse Express, TinyGSR
+* [TMF8829](https://protocentral.com/) dToF depth-ranging
 
-## Installing and using Protocentral OpenView 2
+## Installing and using ProtoCentral OpenView 3
 
 You can download the latest version for your operating system from the [Releases](https://github.com/Protocentral/Protocentral_openview2/releases) page.
 
-OpenView 2 is written on the [Flutter](https://flutter.dev/) and is fully open source. You can compile your own from the source code provide in this GitHub repository.
+OpenView 3 is written in [Flutter](https://flutter.dev/) and is fully open source. You can compile your own from the source code provided in this GitHub repository.
 
 ### Using on Desktop Platforms:
 
@@ -54,7 +61,7 @@ Download the openview app from the [Google Play](https://play.google.com/store/a
 
 ## Packet Format
 
-Protocentral OpenView 2 is compatible with any device that can send data through Serial port over UART/USB/Bluetooth-SPP/BLE
+ProtoCentral OpenView 3 is compatible with any device that can send data through a serial port over UART/USB/Bluetooth-SPP/BLE
 
 | Position      |   Value   |
 | ---------     | ----------|

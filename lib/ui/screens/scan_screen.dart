@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -8,13 +9,14 @@ import '../../controllers/connection_controller.dart';
 import '../../controllers/scan_controller.dart';
 import '../../theme/app_spacing.dart';
 import '../../transport/transport_service.dart';
+import '../../transport/wifi_service.dart';
 import '../../utils/platform_v3.dart';
 import '../app_routes.dart';
 
-/// Connect screen — single compact form: pick port + pick board → go.
+/// Connect screen — pick a transport, then a device + board → go.
 ///
-/// Replaces the older multi-card "scan" UI. The route path stays /scan so
-/// existing deep links keep working; only the visible label changes.
+/// USB lists serial ports; BLE scans for ProtoCentral **Sensything** devices
+/// (the only boards that speak BLE); Wi-Fi takes a manual host:port.
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
 
@@ -23,74 +25,123 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  String? _selectedPortId;
-  BoardDescriptor _selectedBoard = BoardRegistry.all.first;
+  late TransportKind _transport;
+  String? _selectedDeviceId;
+  late BoardDescriptor _selectedBoard;
   bool _userOverrodeBoard = false;
   bool _connecting = false;
   String? _errorMsg;
 
+  final _hostCtrl = TextEditingController();
+  final _portCtrl = TextEditingController(text: '3000');
+
   @override
   void initState() {
     super.initState();
+    // Default to the most likely transport for the platform.
+    _transport = PlatformV3.canUseUsb ? TransportKind.usb : TransportKind.ble;
+    _selectedBoard = _boardsFor(_transport).first;
     WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
   }
 
+  @override
+  void dispose() {
+    _hostCtrl.dispose();
+    _portCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Boards that support the given transport (BLE → Sensything family only).
+  List<BoardDescriptor> _boardsFor(TransportKind kind) {
+    final list = switch (kind) {
+      TransportKind.usb => BoardRegistry.all.where((b) => b.transports.usb),
+      TransportKind.ble => BoardRegistry.all.where((b) => b.transports.ble),
+      TransportKind.wifi => BoardRegistry.all.where((b) => b.transports.wifi),
+    }.toList();
+    return list.isEmpty ? BoardRegistry.all : list;
+  }
+
+  List<ScanResult> _results(ScanController scan) =>
+      _transport == TransportKind.ble ? scan.bleResults : scan.usbResults;
+
   Future<void> _refresh() async {
-    if (!mounted) return;
+    if (!mounted || _transport == TransportKind.wifi) return;
     final scan = context.read<ScanController>();
     await scan.refresh(
-      includeUsb: PlatformV3.canUseUsb,
-      includeBle: false, // phase 1.b
+      includeUsb: _transport == TransportKind.usb && PlatformV3.canUseUsb,
+      includeBle: _transport == TransportKind.ble && PlatformV3.canUseBle,
     );
     if (!mounted) return;
     _reconcileSelection(scan);
   }
 
-  /// After a refresh, keep the prior selection if it's still present,
-  /// otherwise fall back to the first available port and refresh the
-  /// auto-suggested board.
   void _reconcileSelection(ScanController scan) {
-    final ids = scan.usbResults.map((r) => r.target.id).toList();
-    String? next = _selectedPortId;
+    final results = _results(scan);
+    final ids = results.map((r) => r.target.id).toList();
+    String? next = _selectedDeviceId;
     if (next == null || !ids.contains(next)) {
       next = ids.isEmpty ? null : ids.first;
     }
     setState(() {
-      _selectedPortId = next;
+      _selectedDeviceId = next;
       if (!_userOverrodeBoard) {
-        _selectedBoard = _suggestForPort(scan, next) ?? _selectedBoard;
+        _selectedBoard = _suggestForDevice(scan, next) ?? _selectedBoard;
       }
     });
   }
 
-  BoardDescriptor? _suggestForPort(ScanController scan, String? portId) {
-    if (portId == null) return null;
-    final hit = scan.usbResults
-        .where((r) => r.target.id == portId)
-        .cast<ScanResult?>()
-        .firstWhere((_) => true, orElse: () => null);
-    return hit?.suggestedDescriptor;
-  }
-
-  ScanResult? _selectedResult(ScanController scan) {
-    if (_selectedPortId == null) return null;
-    for (final r in scan.usbResults) {
-      if (r.target.id == _selectedPortId) return r;
+  BoardDescriptor? _suggestForDevice(ScanController scan, String? deviceId) {
+    if (deviceId == null) return null;
+    for (final r in _results(scan)) {
+      if (r.target.id == deviceId) return r.suggestedDescriptor;
     }
     return null;
   }
 
+  ScanResult? _selectedResult(ScanController scan) {
+    if (_selectedDeviceId == null) return null;
+    for (final r in _results(scan)) {
+      if (r.target.id == _selectedDeviceId) return r;
+    }
+    return null;
+  }
+
+  void _onTransportChanged(TransportKind kind) {
+    setState(() {
+      _transport = kind;
+      _selectedDeviceId = null;
+      _userOverrodeBoard = false;
+      final boards = _boardsFor(kind);
+      if (!boards.contains(_selectedBoard)) _selectedBoard = boards.first;
+      _errorMsg = null;
+    });
+    _refresh();
+  }
+
   Future<void> _connect() async {
     final scan = context.read<ScanController>();
-    final result = _selectedResult(scan);
-    if (result == null) return;
+    TransportTarget? target;
+
+    if (_transport == TransportKind.wifi) {
+      final host = _hostCtrl.text.trim();
+      final port = int.tryParse(_portCtrl.text.trim());
+      if (host.isEmpty || port == null) {
+        setState(() => _errorMsg = 'Enter a valid host and port.');
+        return;
+      }
+      target = WifiService.targetFor(host: host, port: port);
+    } else {
+      target = _selectedResult(scan)?.target;
+    }
+    if (target == null) return;
+
     setState(() {
       _connecting = true;
       _errorMsg = null;
     });
     try {
       await context.read<ConnectionController>().connect(
-            target: result.target,
+            target: target,
             descriptor: _selectedBoard,
           );
       if (mounted) context.go(AppRoutes.live);
@@ -118,7 +169,7 @@ class _ScanScreenState extends State<ScanScreen> {
             Text('Connect', style: theme.textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Pick a port and a board.',
+              'Pick a transport, a device, and a board.',
               style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant),
             ),
@@ -127,18 +178,24 @@ class _ScanScreenState extends State<ScanScreen> {
               _ConnectedCard(conn: conn)
             else
               _ConnectForm(
+                transport: _transport,
                 scan: scan,
-                selectedPortId: _selectedPortId,
+                results: _results(scan),
+                boards: _boardsFor(_transport),
+                selectedDeviceId: _selectedDeviceId,
                 selectedBoard: _selectedBoard,
+                hostCtrl: _hostCtrl,
+                portCtrl: _portCtrl,
                 connecting: _connecting,
                 errorMsg: _errorMsg,
+                onTransportChanged: _onTransportChanged,
                 onRefresh: _refresh,
-                onPortChanged: (id) {
+                onDeviceChanged: (id) {
                   setState(() {
-                    _selectedPortId = id;
+                    _selectedDeviceId = id;
                     _userOverrodeBoard = false;
                     _selectedBoard =
-                        _suggestForPort(scan, id) ?? _selectedBoard;
+                        _suggestForDevice(scan, id) ?? _selectedBoard;
                   });
                 },
                 onBoardChanged: (b) {
@@ -157,96 +214,86 @@ class _ScanScreenState extends State<ScanScreen> {
 }
 
 class _ConnectForm extends StatelessWidget {
+  final TransportKind transport;
   final ScanController scan;
-  final String? selectedPortId;
+  final List<ScanResult> results;
+  final List<BoardDescriptor> boards;
+  final String? selectedDeviceId;
   final BoardDescriptor selectedBoard;
+  final TextEditingController hostCtrl;
+  final TextEditingController portCtrl;
   final bool connecting;
   final String? errorMsg;
+  final void Function(TransportKind) onTransportChanged;
   final VoidCallback onRefresh;
-  final void Function(String?) onPortChanged;
+  final void Function(String?) onDeviceChanged;
   final void Function(BoardDescriptor) onBoardChanged;
   final VoidCallback onConnect;
 
   const _ConnectForm({
+    required this.transport,
     required this.scan,
-    required this.selectedPortId,
+    required this.results,
+    required this.boards,
+    required this.selectedDeviceId,
     required this.selectedBoard,
+    required this.hostCtrl,
+    required this.portCtrl,
     required this.connecting,
     required this.errorMsg,
+    required this.onTransportChanged,
     required this.onRefresh,
-    required this.onPortChanged,
+    required this.onDeviceChanged,
     required this.onBoardChanged,
     required this.onConnect,
   });
 
+  bool get _isWifi => transport == TransportKind.wifi;
+
+  bool get _canConnect {
+    if (connecting) return false;
+    // Wi-Fi host/port are validated in onConnect (the field text isn't
+    // observed here); device transports gate on a selection.
+    return _isWifi ? true : selectedDeviceId != null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasUsb = PlatformV3.canUseUsb;
-    final results = scan.usbResults;
-    final canConnect = selectedPortId != null && !connecting;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Port row -------------------------------------------------
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: selectedPortId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Port',
-                      prefixIcon: Icon(Icons.usb),
-                    ),
-                    items: results.isEmpty
-                        ? const [
-                            DropdownMenuItem<String>(
-                              value: null,
-                              enabled: false,
-                              child: Text('No ports found'),
-                            ),
-                          ]
-                        : results
-                            .map((r) => DropdownMenuItem(
-                                  value: r.target.id,
-                                  child: Text(
-                                    r.target.displayName,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ))
-                            .toList(),
-                    onChanged: results.isEmpty ? null : onPortChanged,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                IconButton.filledTonal(
-                  tooltip: 'Refresh ports',
-                  onPressed: scan.scanning ? null : onRefresh,
-                  icon: scan.scanning
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh),
-                ),
-              ],
+            _TransportSelector(
+              selected: transport,
+              onChanged: onTransportChanged,
             ),
+            const SizedBox(height: AppSpacing.lg),
+
+            // --- Device / address row -----------------------------------
+            if (_isWifi)
+              _WifiFields(hostCtrl: hostCtrl, portCtrl: portCtrl)
+            else
+              _DeviceRow(
+                transport: transport,
+                results: results,
+                scanning: scan.scanning,
+                selectedDeviceId: selectedDeviceId,
+                onRefresh: onRefresh,
+                onDeviceChanged: onDeviceChanged,
+              ),
             const SizedBox(height: AppSpacing.md),
 
-            // --- Board row ------------------------------------------------
+            // --- Board row ----------------------------------------------
             DropdownButtonFormField<BoardDescriptor>(
-              initialValue: selectedBoard,
+              initialValue: boards.contains(selectedBoard) ? selectedBoard : null,
               isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Board',
                 prefixIcon: Icon(Icons.developer_board),
               ),
-              items: BoardRegistry.all
+              items: boards
                   .map((b) => DropdownMenuItem(
                         value: b,
                         child: Text(b.displayName),
@@ -258,23 +305,21 @@ class _ConnectForm extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
 
-            // --- Hints / detection / errors ------------------------------
             _Hints(
-              hasUsb: hasUsb,
+              transport: transport,
               results: results,
               scanning: scan.scanning,
-              selectedPortId: selectedPortId,
+              selectedDeviceId: selectedDeviceId,
               selectedBoard: selectedBoard,
               errorMsg: errorMsg,
               scanError: scan.lastError,
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // --- Connect button ------------------------------------------
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton.icon(
-                onPressed: canConnect ? onConnect : null,
+                onPressed: _canConnect ? onConnect : null,
                 icon: connecting
                     ? const SizedBox(
                         width: 16,
@@ -287,8 +332,8 @@ class _ConnectForm extends StatelessWidget {
                     : const Icon(Icons.play_arrow),
                 label: Text(connecting ? 'Connecting…' : 'Connect'),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 28, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                 ),
               ),
             ),
@@ -299,20 +344,169 @@ class _ConnectForm extends StatelessWidget {
   }
 }
 
-class _Hints extends StatelessWidget {
-  final bool hasUsb;
+class _TransportSelector extends StatelessWidget {
+  final TransportKind selected;
+  final void Function(TransportKind) onChanged;
+  const _TransportSelector({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final segments = <ButtonSegment<TransportKind>>[
+      if (PlatformV3.canUseUsb)
+        const ButtonSegment(
+          value: TransportKind.usb,
+          icon: Icon(Icons.usb),
+          label: Text('USB'),
+        ),
+      if (PlatformV3.canUseBle)
+        const ButtonSegment(
+          value: TransportKind.ble,
+          icon: Icon(Icons.bluetooth),
+          label: Text('BLE'),
+        ),
+      const ButtonSegment(
+        value: TransportKind.wifi,
+        icon: Icon(Icons.wifi),
+        label: Text('Wi-Fi'),
+      ),
+    ];
+    // SegmentedButton needs the selection to be one of the segments.
+    final values = segments.map((s) => s.value).toSet();
+    final sel = values.contains(selected) ? selected : segments.first.value;
+
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<TransportKind>(
+        segments: segments,
+        selected: {sel},
+        showSelectedIcon: false,
+        onSelectionChanged: (s) => onChanged(s.first),
+      ),
+    );
+  }
+}
+
+class _DeviceRow extends StatelessWidget {
+  final TransportKind transport;
   final List<ScanResult> results;
   final bool scanning;
-  final String? selectedPortId;
+  final String? selectedDeviceId;
+  final VoidCallback onRefresh;
+  final void Function(String?) onDeviceChanged;
+
+  const _DeviceRow({
+    required this.transport,
+    required this.results,
+    required this.scanning,
+    required this.selectedDeviceId,
+    required this.onRefresh,
+    required this.onDeviceChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isBle = transport == TransportKind.ble;
+    final label = isBle ? 'Device' : 'Port';
+    final icon = isBle ? Icons.bluetooth : Icons.usb;
+    final empty = isBle ? 'No devices found' : 'No ports found';
+
+    return Row(
+      children: [
+        Expanded(
+          child: DropdownButtonFormField<String>(
+            initialValue: selectedDeviceId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: label,
+              prefixIcon: Icon(icon),
+            ),
+            items: results.isEmpty
+                ? [
+                    DropdownMenuItem<String>(
+                      value: null,
+                      enabled: false,
+                      child: Text(empty),
+                    ),
+                  ]
+                : results
+                    .map((r) => DropdownMenuItem(
+                          value: r.target.id,
+                          child: Text(
+                            r.target.displayName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ))
+                    .toList(),
+            onChanged: results.isEmpty ? null : onDeviceChanged,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        IconButton.filledTonal(
+          tooltip: isBle ? 'Scan for devices' : 'Refresh ports',
+          onPressed: scanning ? null : onRefresh,
+          icon: scanning
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(isBle ? Icons.bluetooth_searching : Icons.refresh),
+        ),
+      ],
+    );
+  }
+}
+
+class _WifiFields extends StatelessWidget {
+  final TextEditingController hostCtrl;
+  final TextEditingController portCtrl;
+  const _WifiFields({required this.hostCtrl, required this.portCtrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 3,
+          child: TextField(
+            controller: hostCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Host / IP',
+              prefixIcon: Icon(Icons.lan),
+              hintText: '192.168.1.50',
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          flex: 1,
+          child: TextField(
+            controller: portCtrl,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(labelText: 'Port'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Hints extends StatelessWidget {
+  final TransportKind transport;
+  final List<ScanResult> results;
+  final bool scanning;
+  final String? selectedDeviceId;
   final BoardDescriptor selectedBoard;
   final String? errorMsg;
   final String? scanError;
 
   const _Hints({
-    required this.hasUsb,
+    required this.transport,
     required this.results,
     required this.scanning,
-    required this.selectedPortId,
+    required this.selectedDeviceId,
     required this.selectedBoard,
     required this.errorMsg,
     required this.scanError,
@@ -333,48 +527,67 @@ class _Hints extends StatelessWidget {
       hints.add(_HintLine(
         icon: Icons.warning_amber,
         color: theme.colorScheme.error,
-        text: 'Port scan: $scanError',
+        text: 'Scan: $scanError',
       ));
     }
 
-    if (!hasUsb) {
-      hints.add(_HintLine(
-        icon: Icons.phone_iphone,
-        color: theme.colorScheme.onSurfaceVariant,
-        text: 'Mobile build — USB unavailable. BLE arrives in phase 1.b.',
-      ));
-    } else if (results.isEmpty && !scanning) {
+    if (transport == TransportKind.ble) {
       hints.add(_HintLine(
         icon: Icons.info_outline,
         color: theme.colorScheme.onSurfaceVariant,
-        text: 'No USB devices found. Plug a board in and tap refresh.',
+        text: 'BLE is currently available only for ProtoCentral Sensything '
+            'devices.',
       ));
-    } else if (selectedPortId != null) {
-      final r = results.firstWhere(
-        (x) => x.target.id == selectedPortId,
-        orElse: () => results.first,
-      );
-      final suggested = r.suggestedDescriptor;
-      if (suggested != null && suggested.id == selectedBoard.id) {
+      if (results.isEmpty && !scanning) {
         hints.add(_HintLine(
-          icon: Icons.auto_awesome,
-          color: theme.colorScheme.tertiary,
-          text: 'Auto-detected: ${suggested.displayName}',
+          icon: Icons.bluetooth_disabled,
+          color: theme.colorScheme.onSurfaceVariant,
+          text: 'No Sensything devices found. Power one on and tap scan.',
         ));
-      } else if (suggested != null) {
+      }
+    } else if (transport == TransportKind.wifi) {
+      hints.add(_HintLine(
+        icon: Icons.info_outline,
+        color: theme.colorScheme.onSurfaceVariant,
+        text: 'Wi-Fi is currently available only for ProtoCentral Sensything '
+            'and HealthyPi devices. Enter the device\'s IP address and TCP '
+            'port.',
+      ));
+    } else {
+      // USB
+      if (results.isEmpty && !scanning) {
         hints.add(_HintLine(
           icon: Icons.info_outline,
           color: theme.colorScheme.onSurfaceVariant,
-          text: 'Detected ${suggested.displayName}, but you picked '
-              '${selectedBoard.displayName}.',
+          text: 'No USB devices found. Plug a board in and tap refresh.',
         ));
-      }
-      if (r.target.subtitle != null && r.target.subtitle!.isNotEmpty) {
-        hints.add(_HintLine(
-          icon: Icons.memory,
-          color: theme.colorScheme.onSurfaceVariant,
-          text: r.target.subtitle!,
-        ));
+      } else if (selectedDeviceId != null) {
+        final r = results.firstWhere(
+          (x) => x.target.id == selectedDeviceId,
+          orElse: () => results.first,
+        );
+        final suggested = r.suggestedDescriptor;
+        if (suggested != null && suggested.id == selectedBoard.id) {
+          hints.add(_HintLine(
+            icon: Icons.auto_awesome,
+            color: theme.colorScheme.secondary,
+            text: 'Auto-detected: ${suggested.displayName}',
+          ));
+        } else if (suggested != null) {
+          hints.add(_HintLine(
+            icon: Icons.info_outline,
+            color: theme.colorScheme.onSurfaceVariant,
+            text: 'Detected ${suggested.displayName}, but you picked '
+                '${selectedBoard.displayName}.',
+          ));
+        }
+        if (r.target.subtitle != null && r.target.subtitle!.isNotEmpty) {
+          hints.add(_HintLine(
+            icon: Icons.memory,
+            color: theme.colorScheme.onSurfaceVariant,
+            text: r.target.subtitle!,
+          ));
+        }
       }
     }
 
@@ -411,10 +624,8 @@ class _HintLine extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: color),
+            style:
+                Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
           ),
         ),
       ],
@@ -441,7 +652,7 @@ class _ConnectedCard extends StatelessWidget {
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.tertiary,
+                    color: theme.colorScheme.secondary,
                     shape: BoxShape.circle,
                   ),
                 ),

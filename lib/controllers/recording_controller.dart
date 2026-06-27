@@ -3,20 +3,21 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../boards/board_descriptor.dart';
 import '../protocol/decoded_packet.dart';
 import '../recording/biosignal_file_writer.dart';
 import '../recording/recording_models.dart';
 import 'connection_controller.dart';
+import 'settings_controller.dart';
 
 /// Orchestrates a `.hpd` capture session: subscribes to the connection's
 /// packet stream, assembles per-packet `MultiChannelSample`s with host
 /// timestamps, and drives [BiosignalFileWriter].
 class RecordingController extends ChangeNotifier {
   final ConnectionController connection;
-  RecordingController({required this.connection});
+  final SettingsController settings;
+  RecordingController({required this.connection, required this.settings});
 
   RecordingState _state = RecordingState.idle;
   RecordingState get state => _state;
@@ -51,7 +52,7 @@ class RecordingController extends ChangeNotifier {
       throw RecordingException('No board connected');
     }
 
-    final dir = await _recordingsDirectory();
+    final dir = await settings.recordingsDirectory();
     if (!await dir.exists()) await dir.create(recursive: true);
 
     final name = _newFileName(descriptor);
@@ -165,11 +166,6 @@ class RecordingController extends ChangeNotifier {
     writer.writeSamples(samples);
     _samplesRecorded += samples.length;
     notifyListeners();
-  }
-
-  static Future<Directory> _recordingsDirectory() async {
-    final docs = await getApplicationDocumentsDirectory();
-    return Directory(p.join(docs.path, 'ProtoCentral_Recordings'));
   }
 
   static String _newFileName(BoardDescriptor d) {

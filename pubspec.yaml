@@ -1,7 +1,7 @@
 name: OpenView
-description: BLE companion app for use with ProtoCentral breakout boards and modules
+description: Companion app for ProtoCentral biosignal & sensor boards over USB, BLE, and Wi-Fi.
 
-version: 2.1.19+130
+version: 3.0.0+131
 
 environment:
   sdk: ^3.3.0
@@ -13,7 +13,6 @@ dependencies:
   cupertino_icons: ^1.0.6
   http: ^1.2.1
   path_provider: ^2.0.11
-  flutter_reactive_ble: ^5.3.1
   geolocator: ^14.0.0
   intl: ^0.20.1
 
@@ -42,6 +41,7 @@ dependencies:
   go_router: ^14.6.2
   window_manager: ^0.4.3
   flutter_blue_plus: ^1.32.12
+  file_selector: ^1.0.3
 
 dependency_overrides:
   csv: ^5.0.2

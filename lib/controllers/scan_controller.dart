@@ -70,6 +70,17 @@ class ScanController extends ChangeNotifier {
         productId: pid,
         productName: desc,
       );
+    } else if (target.kind == TransportKind.ble) {
+      // BleService tags the matched descriptor id during the scan; fall back
+      // to re-matching by the advertised service UUIDs if absent.
+      final descriptorId = target.extra['descriptorId'] as String?;
+      suggested = descriptorId != null
+          ? BoardRegistry.byId(descriptorId)
+          : BoardRegistry.matchBle(
+              serviceUuids:
+                  (target.extra['serviceUuids'] as List?)?.cast<String>(),
+              advertisedName: target.displayName,
+            );
     }
     return ScanResult(target: target, suggestedDescriptor: suggested);
   }

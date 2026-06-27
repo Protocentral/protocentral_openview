@@ -64,7 +64,7 @@ final BoardDescriptor healthypiDescriptor = BoardDescriptor(
   id: 'healthypi',
   displayName: 'HealthyPi 5',
   manufacturer: 'ProtoCentral',
-  transports: const TransportSupport(usb: true),
+  transports: const TransportSupport(usb: true, wifi: true),
   usbProfile: _usbProfile,
   channels: const [
     _ecgChannel,

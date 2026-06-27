@@ -136,6 +136,10 @@ class _ConsoleLine extends StatelessWidget {
           return scheme.error;
         case 'status':
           return scheme.primary;
+        case 'rx':
+          return scheme.onSurfaceVariant;
+        case 'tx':
+          return scheme.secondary;
         default:
           return scheme.onSurfaceVariant;
       }

@@ -13,6 +13,7 @@ import '../protocol/packet_router.dart';
 import '../transport/ble_service.dart';
 import '../transport/transport_service.dart';
 import '../transport/usb_serial_service.dart';
+import '../transport/wifi_service.dart';
 
 /// One decoded event for the live console (hex dump or routed event).
 class ConsoleEntry {
@@ -28,11 +29,21 @@ class ConsoleEntry {
 class ConnectionController extends ChangeNotifier {
   final UsbSerialService usb;
   final BleService ble;
+  final WifiService wifi;
 
-  ConnectionController({required this.usb, required this.ble});
+  ConnectionController({
+    required this.usb,
+    required this.ble,
+    required this.wifi,
+  });
 
   TransportService? _active;
   BoardDescriptor? _descriptor;
+
+  /// Raw-BLE mode: notifications are complete packet payloads (no framing), so
+  /// the byte-stream framer is bypassed and each chunk is decoded directly.
+  bool _rawBle = false;
+  int _rawBlePktType = 0;
   PacketFramer? _framer;
   PacketRouter? _router;
   StreamSubscription<dynamic>? _bytesSub;
@@ -103,13 +114,23 @@ class ConnectionController extends ChangeNotifier {
     final TransportService transport = switch (target.kind) {
       TransportKind.usb => usb,
       TransportKind.ble => ble,
-      TransportKind.wifi => throw UnimplementedError('Wi-Fi transport deferred'),
+      TransportKind.wifi => wifi,
     };
 
-    // Set USB baud rate from descriptor.
+    // Hand each transport the link parameters it needs from the descriptor.
     if (transport is UsbSerialService && descriptor.usbProfile != null) {
       transport.setBaudRate(descriptor.usbProfile!.baudRate);
+    } else if (transport is BleService && descriptor.bleProfile != null) {
+      transport.setProfile(descriptor.bleProfile!);
     }
+
+    // Raw (unframed) BLE: some firmwares (e.g. Sensything OX) stream payloads
+    // without the 0x0A 0xFA … 0x0B wrapper. In that mode each notification is
+    // one packet payload, decoded directly — the framer is bypassed.
+    final bleProfile =
+        target.kind == TransportKind.ble ? descriptor.bleProfile : null;
+    _rawBle = bleProfile != null && !bleProfile.framed;
+    _rawBlePktType = bleProfile?.rawPacketType ?? 0;
 
     _resetCounters();
     // Allocate one ring buffer per declared channel, sized for ~10 s window.
@@ -201,6 +222,7 @@ class ConnectionController extends ChangeNotifier {
     _descriptor = null;
     _framer = null;
     _router = null;
+    _rawBle = false;
     _setStatus(TransportStatus.idle);
   }
 
@@ -226,10 +248,37 @@ class ConnectionController extends ChangeNotifier {
     }
   }
 
+  DateTime? _lastRxLogAt;
+
   void _onBytes(Uint8List chunk) {
     _bytesIn += chunk.length;
-    _framer?.processChunk(chunk);
+    _maybeLogRx(chunk);
+    if (_rawBle) {
+      // BLE delivers clean, message-framed packets — no byte-stream framing to
+      // resync, so decode each notification directly as one packet.
+      _onFramedPacket(
+          FramedPacket(pktType: _rawBlePktType, payload: chunk, known: true));
+    } else {
+      _framer?.processChunk(chunk);
+    }
     notifyListeners();
+  }
+
+  /// Throttled raw-byte hex dump to the console — invaluable for diagnosing a
+  /// new transport/firmware where bytes arrive but nothing decodes (e.g. the
+  /// framing differs from the expected `0x0A 0xFA … 0x0B`).
+  void _maybeLogRx(Uint8List chunk) {
+    final now = DateTime.now();
+    if (_lastRxLogAt != null &&
+        now.difference(_lastRxLogAt!).inMilliseconds < 300) {
+      return;
+    }
+    _lastRxLogAt = now;
+    final n = chunk.length < 24 ? chunk.length : 24;
+    final hex = [
+      for (var i = 0; i < n; i++) chunk[i].toRadixString(16).padLeft(2, '0')
+    ].join(' ');
+    _log('rx', '${chunk.length} B: $hex${chunk.length > n ? ' …' : ''}');
   }
 
   void _onFramedPacket(FramedPacket pkt) {
@@ -260,6 +309,7 @@ class ConnectionController extends ChangeNotifier {
     _framerErrors = 0;
     _bytesIn = 0;
     _connectedAt = null;
+    _lastRxLogAt = null;
     latestEvents.clear();
     channelSampleCounts.clear();
     channelBuffers.clear();

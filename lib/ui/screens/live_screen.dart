@@ -8,6 +8,7 @@ import '../../controllers/channel_controller.dart';
 import '../../controllers/connection_controller.dart';
 import '../../controllers/recording_controller.dart';
 import '../../controllers/recordings_browser_controller.dart';
+import '../../controllers/settings_controller.dart';
 import '../../recording/recording_models.dart';
 import '../../theme/app_spacing.dart';
 import '../../transport/transport_service.dart';
@@ -78,6 +79,7 @@ class _LiveScreenState extends State<LiveScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final conn = context.watch<ConnectionController>();
+    final repaintHz = context.watch<SettingsController>().repaintHz;
     final connected = conn.status == TransportStatus.connected;
 
     if (!connected) {
@@ -119,7 +121,7 @@ class _LiveScreenState extends State<LiveScreen> {
       bodyChildren.add(_Controls(chart: chart));
       bodyChildren.add(const SizedBox(height: AppSpacing.sm));
       bodyChildren.add(Expanded(
-        child: MultiChannelWaveformChart(controller: chart),
+        child: MultiChannelWaveformChart(controller: chart, refreshHz: repaintHz),
       ));
       bodyChildren.add(AnimatedBuilder(
         animation: chart,
@@ -172,6 +174,7 @@ class _LiveScreenState extends State<LiveScreen> {
             colorMap: _colorMapFor(m.id, m.colorMap),
             scaling: _scaleFor(m.id),
             showValues: showValues,
+            refreshHz: repaintHz,
           ),
         ));
       }
@@ -519,10 +522,10 @@ class _RecordButton extends StatelessWidget {
       onPressed: () => recording ? _stop(context, rec) : _start(context, rec),
       style: FilledButton.styleFrom(
         backgroundColor:
-            recording ? theme.colorScheme.error : theme.colorScheme.primary,
+            recording ? theme.colorScheme.error : theme.colorScheme.secondary,
         foregroundColor: recording
             ? theme.colorScheme.onError
-            : theme.colorScheme.onPrimary,
+            : theme.colorScheme.onSecondary,
       ),
       icon: Icon(recording ? Icons.stop : Icons.fiber_manual_record),
       label: Text(recording

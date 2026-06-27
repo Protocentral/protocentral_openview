@@ -42,10 +42,22 @@ class BleProfile {
   final String? commandCharacteristicUuid;
   final List<String> nameAdvertisesContains;
 
+  /// Whether the BLE notification stream uses the ProtoCentral framing
+  /// (`0x0A 0xFA … 0x0B`). Some firmwares (e.g. Sensything OX) stream **raw**
+  /// payloads with no framing — BLE already provides message boundaries — in
+  /// which case set this false and provide [rawPacketType].
+  final bool framed;
+
+  /// When [framed] is false, each notification is treated as one raw payload
+  /// of this packet type and decoded directly via the board's `PacketSpec`.
+  final int rawPacketType;
+
   const BleProfile({
     required this.serviceUuid,
     required this.streamCharacteristicUuid,
     this.commandCharacteristicUuid,
     this.nameAdvertisesContains = const [],
+    this.framed = true,
+    this.rawPacketType = 0,
   });
 }

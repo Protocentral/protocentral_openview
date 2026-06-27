@@ -47,6 +47,46 @@ class BoardRegistry {
   static Iterable<BoardDescriptor> bleCapable() =>
       all.where((b) => b.transports.ble);
 
+  /// Find the BLE-capable descriptor for an advertised service UUID / device
+  /// name. BLE is currently Sensything-only, so this only ever resolves to the
+  /// Sensything descriptors. Returns null if no match.
+  ///
+  /// Advertised-name matching is tried **first**: Sensything OX and CAP share
+  /// the same OpenView service UUID, so the name (`Sensything-OX` vs
+  /// `Sensything-CAP`) is the only reliable discriminator. Service-UUID
+  /// matching is the fallback for devices whose name we can't read.
+  static BoardDescriptor? matchBle({
+    List<String>? serviceUuids,
+    String? advertisedName,
+  }) {
+    String norm(String s) => s.toLowerCase().replaceAll('-', '');
+
+    // 1) Specific advertised-name match.
+    if (advertisedName != null && advertisedName.isNotEmpty) {
+      final lower = advertisedName.toLowerCase();
+      for (final b in all) {
+        final profile = b.bleProfile;
+        if (profile == null) continue;
+        if (profile.nameAdvertisesContains
+            .any((n) => lower.contains(n.toLowerCase()))) {
+          return b;
+        }
+      }
+    }
+
+    // 2) Service-UUID fallback.
+    final advertised = serviceUuids?.map(norm).toList() ?? const [];
+    for (final b in all) {
+      final profile = b.bleProfile;
+      if (profile == null) continue;
+      final svc = norm(profile.serviceUuid);
+      if (advertised.any((u) => u == svc || u.endsWith(svc) || svc.endsWith(u))) {
+        return b;
+      }
+    }
+    return null;
+  }
+
   /// Find the first descriptor whose USB profile plausibly matches the given
   /// port name / VID / PID. Returns null if no match.
   static BoardDescriptor? matchUsb({

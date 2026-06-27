@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../recording/biosignal_file_reader.dart';
 import '../recording/recording_file_info.dart';
+import 'settings_controller.dart';
 
 /// Owns the recordings directory listing + per-file header probe.
 ///
@@ -14,6 +14,9 @@ import '../recording/recording_file_info.dart';
 /// sample iteration is left to consumers (replay, export) — we don't want
 /// the browser to block on giant files.
 class RecordingsBrowserController extends ChangeNotifier {
+  final SettingsController settings;
+  RecordingsBrowserController({required this.settings});
+
   bool _loading = false;
   bool get loading => _loading;
 
@@ -36,7 +39,7 @@ class RecordingsBrowserController extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final dir = await _resolveDir();
+      final dir = await settings.recordingsDirectory();
       _dir = dir;
       if (!await dir.exists()) {
         await dir.create(recursive: true);
@@ -113,8 +116,16 @@ class RecordingsBrowserController extends ChangeNotifier {
     }
   }
 
-  static Future<Directory> _resolveDir() async {
-    final docs = await getApplicationDocumentsDirectory();
-    return Directory(p.join(docs.path, 'ProtoCentral_Recordings'));
+  /// Reveal the (effective) recordings directory in the OS file manager.
+  Future<void> revealDirectory() async {
+    final dir = _dir ?? await settings.recordingsDirectory();
+    if (!await dir.exists()) await dir.create(recursive: true);
+    if (Platform.isMacOS) {
+      await Process.run('open', [dir.path]);
+    } else if (Platform.isWindows) {
+      await Process.run('explorer.exe', [dir.path]);
+    } else if (Platform.isLinux) {
+      await Process.run('xdg-open', [dir.path]);
+    }
   }
 }

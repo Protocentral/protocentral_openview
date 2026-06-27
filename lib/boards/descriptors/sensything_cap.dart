@@ -12,7 +12,7 @@ final BoardDescriptor sensythingCapDescriptor = BoardDescriptor(
   id: 'sensything_cap',
   displayName: 'Sensything CAP',
   manufacturer: 'ProtoCentral',
-  transports: const TransportSupport(usb: true, ble: true),
+  transports: const TransportSupport(usb: true, ble: true, wifi: true),
   usbProfile: const UsbProfile(
     baudRate: 115200,
     idMatches: [
@@ -20,10 +20,13 @@ final BoardDescriptor sensythingCapDescriptor = BoardDescriptor(
       UsbIdMatch(vendorId: 0x1A86, productNameContains: 'CH340'),
     ],
   ),
+  // Shared OpenView-compatible Sensything BLE service. Service/characteristic
+  // assumed identical to Sensything OX; advertised name inferred as
+  // 'Sensything-CAP'. TODO: confirm against the CAP firmware (SensythingBLE.cpp).
   bleProfile: const BleProfile(
-    serviceUuid: 'cd5c0001-4448-7db8-ae4c-d1da8cba36d0',
-    streamCharacteristicUuid: 'cd5c0002-4448-7db8-ae4c-d1da8cba36d0',
-    nameAdvertisesContains: ['Sensything', 'CAP'],
+    serviceUuid: '0001A7D3-D8A4-4FEA-8174-1736E808C066',
+    streamCharacteristicUuid: '0002A7D3-D8A4-4FEA-8174-1736E808C066',
+    nameAdvertisesContains: ['Sensything-CAP'],
   ),
   channels: const [
     ChannelSpec(

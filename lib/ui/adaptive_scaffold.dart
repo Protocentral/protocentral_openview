@@ -86,7 +86,7 @@ class AdaptiveScaffold extends StatelessWidget {
                     ))
                 .toList(),
           ),
-          const VerticalDivider(width: 1),
+          const _RailSeparator(),
           Expanded(child: child),
         ],
       ),
@@ -102,85 +102,126 @@ class _NavDest {
   const _NavDest(this.path, this.label, this.icon, this.selectedIcon);
 }
 
+/// Boundary between the navigation rail and the content area.
+///
+/// A crisp 1px seam (so the two differently-shaded panels read as separate
+/// zones) followed by a short shadow gradient that gives the body the feel of
+/// sitting beneath the rail.
+class _RailSeparator extends StatelessWidget {
+  const _RailSeparator();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 1, color: scheme.outline),
+        Container(
+          width: 12,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                Colors.black.withValues(alpha: 0.30),
+                Colors.black.withValues(alpha: 0.0),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// ProtoCentral brand mark for the NavigationRail's leading slot.
 ///
-/// Collapsed: round logo only (~40×40).
-/// Extended: round logo + "OpenView · v3.0 alpha" wordmark.
+/// Collapsed: round badge only (~40×40).
+/// Extended: full white ProtoCentral wordmark logo above a distinct "OpenView"
+/// app name + version. Minimalist — one brand lockup, one app name.
 class _BrandMark extends StatelessWidget {
   final bool extended;
   const _BrandMark({required this.extended});
 
   static const _logoRound = 'assets/branding/pc-logo-round.png';
+  static const _logoFullWhite = 'assets/proto-online-white.png';
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    // The asset is RGB (no alpha) with black corners around a pale-blue disk.
-    // Clip to a circle so the black corners never show, then wrap in a
-    // theme-aware circular tile so the logo has consistent contrast in
-    // both light and dark themes:
-    //   - dark surface → tile lifts the logo from the dark background
-    //   - light surface → tile gives the pale-blue disk visible weight
-    final logo = Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.6),
-          width: 1,
-        ),
-      ),
-      padding: const EdgeInsets.all(2),
-      child: ClipOval(
-        child: Image.asset(
-          _logoRound,
-          fit: BoxFit.cover,
-          filterQuality: FilterQuality.medium,
-          semanticLabel: 'ProtoCentral',
-        ),
-      ),
-    );
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     if (!extended) {
+      // Round badge on a theme-aware circular tile (asset has no alpha around
+      // the disk, so clip to a circle and float it on a container tile).
+      final badge = Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.6),
+            width: 1,
+          ),
+        ),
+        padding: const EdgeInsets.all(2),
+        child: ClipOval(
+          child: Image.asset(
+            _logoRound,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+            semanticLabel: 'ProtoCentral',
+          ),
+        ),
+      );
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        child: logo,
+        child: badge,
       );
     }
 
     // NavigationRail.leading provides an unbounded width slot — give the
-    // extended brand mark an explicit width so its Row + Expanded can lay out.
+    // extended brand mark an explicit width so its children can lay out.
     return SizedBox(
       width: 220,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            logo,
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'OpenView',
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  Text(
-                    'by ProtoCentral · v3.0 alpha',
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
+            // Full ProtoCentral logo (white wordmark + badge) for the dark rail.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Image.asset(
+                _logoFullWhite,
+                width: 176,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+                semanticLabel: 'ProtoCentral',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // OpenView — the app name, distinct from the brand wordmark by
+            // colour (brand cyan), but using the app's standard UI typeface.
+            Text(
+              'OpenView',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: scheme.primary,
+                letterSpacing: 0.5,
+                height: 1.0,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'v3.0 alpha',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                letterSpacing: 1.2,
               ),
             ),
           ],

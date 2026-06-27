@@ -8,21 +8,28 @@ import 'controllers/connection_controller.dart';
 import 'controllers/recording_controller.dart';
 import 'controllers/recordings_browser_controller.dart';
 import 'controllers/scan_controller.dart';
+import 'controllers/settings_controller.dart';
 import 'recording/recording_models.dart';
 import 'transport/ble_service.dart';
 import 'transport/usb_serial_service.dart';
+import 'transport/wifi_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Build the full controller graph here so the close handler can reach
   // them directly. OpenViewApp registers them as Provider.value.
+  final settings = SettingsController();
+  await settings.load();
+
   final usb = UsbSerialService();
   final ble = BleService();
-  final connection = ConnectionController(usb: usb, ble: ble);
+  final wifi = WifiService();
+  final connection = ConnectionController(usb: usb, ble: ble, wifi: wifi);
   final scan = ScanController(usb: usb, ble: ble);
-  final recording = RecordingController(connection: connection);
-  final recordingsBrowser = RecordingsBrowserController();
+  final recording =
+      RecordingController(connection: connection, settings: settings);
+  final recordingsBrowser = RecordingsBrowserController(settings: settings);
 
   final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
   if (isDesktop) {
@@ -44,6 +51,7 @@ Future<void> main() async {
     final closer = _CloseHandler(
       usb: usb,
       ble: ble,
+      wifi: wifi,
       recording: recording,
     );
     windowManager.addListener(closer);
@@ -52,6 +60,8 @@ Future<void> main() async {
   runApp(OpenViewApp(
     usb: usb,
     ble: ble,
+    wifi: wifi,
+    settings: settings,
     connection: connection,
     scan: scan,
     recording: recording,
@@ -62,10 +72,12 @@ Future<void> main() async {
 class _CloseHandler with WindowListener {
   final UsbSerialService usb;
   final BleService ble;
+  final WifiService wifi;
   final RecordingController recording;
   _CloseHandler({
     required this.usb,
     required this.ble,
+    required this.wifi,
     required this.recording,
   });
 
@@ -93,6 +105,9 @@ class _CloseHandler with WindowListener {
     } catch (_) {}
     try {
       await ble.disconnect();
+    } catch (_) {}
+    try {
+      await wifi.disconnect();
     } catch (_) {}
 
     // 3. Skip the Flutter engine teardown.

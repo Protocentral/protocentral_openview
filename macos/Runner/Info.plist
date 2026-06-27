@@ -30,6 +30,8 @@
     <string>public.app-category.developer-tools</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>OpenView needs Bluetooth to connect to ProtoCentral Sensything devices.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
