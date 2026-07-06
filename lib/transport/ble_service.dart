@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:universal_ble/universal_ble.dart';
 
 import '../boards/board_registry.dart';
 import '../boards/transport_profile.dart';
 import 'transport_service.dart';
 
-/// BLE transport via flutter_blue_plus.
+/// BLE transport via `universal_ble`.
 ///
 /// BLE is currently available only for the **Sensything family** of devices —
 /// they are the only boards that declare a [BleProfile]. Scanning is therefore
@@ -17,16 +17,22 @@ import 'transport_service.dart';
 /// The active board's [BleProfile] (service + characteristic UUIDs) is supplied
 /// by [ConnectionController] via [setProfile] before [connect], mirroring the
 /// way the USB transport receives its baud rate.
+///
+/// **Plugin note:** BLE is provided by `universal_ble` (BSD-3, all platforms
+/// incl. web). It is a **static/singleton** API keyed by `deviceId` (not
+/// device-object methods), so this service holds the device id + resolved
+/// service/characteristic UUIDs as strings. The [TransportService] abstraction
+/// keeps the BLE plugin swappable — preserve it.
 class BleService extends TransportService {
   /// Flip to true to re-enable BLE bring-up diagnostics (characteristic list,
   /// notify status, per-second RX throughput).
   static const bool _verbose = false;
 
   BleService() {
-    // Silence flutter_blue_plus's verbose native logging — at 125 Hz the
-    // per-notification "[FBP-iOS] didUpdateValueForCharacteristic" lines flood
-    // the console. Raise to LogLevel.verbose only when debugging the stack.
-    FlutterBluePlus.setLogLevel(_verbose ? LogLevel.verbose : LogLevel.none);
+    // Silence verbose native logging — at 125 Hz the per-notification logs
+    // flood the console. Raise to BleLogLevel.verbose only when debugging the
+    // stack. (No-op in release builds — universal_ble gates logging on kDebugMode.)
+    UniversalBle.setLogLevel(_verbose ? BleLogLevel.verbose : BleLogLevel.none);
   }
 
   final _bytesController = StreamController<Uint8List>.broadcast();
@@ -38,11 +44,16 @@ class BleService extends TransportService {
   /// Profile for the next/active connection. Set by ConnectionController.
   BleProfile? _profile;
 
-  BluetoothDevice? _device;
-  BluetoothCharacteristic? _streamChar;
-  BluetoothCharacteristic? _commandChar;
-  StreamSubscription<List<int>>? _valueSub;
-  StreamSubscription<BluetoothConnectionState>? _connSub;
+  // Active-connection handles. universal_ble is keyed by these strings rather
+  // than by a device object.
+  String? _deviceId;
+  String? _serviceUuid;
+  String? _streamCharUuid;
+  String? _commandCharUuid;
+  bool _writeWithoutResponse = false;
+
+  StreamSubscription<Uint8List>? _valueSub;
+  StreamSubscription<bool>? _connSub;
 
   // Per-second RX throughput tally (diagnostic).
   int _rxCount = 0;
@@ -90,37 +101,33 @@ class BleService extends TransportService {
     // (Sensything) descriptor — by advertised service UUID *or* name. This is
     // more robust than an adapter-level service filter for devices that
     // advertise their name but not their primary service UUID.
-    final sub = FlutterBluePlus.scanResults.listen((results) {
-      for (final r in results) {
-        final t = _toTarget(r);
-        if (t != null) found[t.id] = t;
-      }
+    final sub = UniversalBle.scanStream.listen((device) {
+      final t = _toTarget(device);
+      if (t != null) found[t.id] = t;
     });
 
     try {
-      await FlutterBluePlus.startScan(timeout: timeout);
-      // Wait for the timed scan to actually finish before returning results.
-      if (FlutterBluePlus.isScanningNow) {
-        await FlutterBluePlus.isScanning.where((on) => !on).first;
-      }
+      await UniversalBle.startScan();
+      // universal_ble's startScan has no timeout — bound it ourselves.
+      await Future<void>.delayed(timeout);
     } catch (e) {
       _eventsController.add(TransportEvent(TransportStatus.error,
           message: 'BLE scan failed', error: e));
     } finally {
+      try {
+        await UniversalBle.stopScan();
+      } catch (_) {}
       await sub.cancel();
       _setStatus(TransportStatus.idle);
     }
     return found.values.toList(growable: false);
   }
 
-  /// Map a flutter_blue_plus scan result to a transport target, annotating the
+  /// Map a universal_ble scan result to a transport target, annotating the
   /// matched descriptor id when the advertised name/service identifies one.
-  TransportTarget? _toTarget(ScanResult r) {
-    final advName = r.advertisementData.advName.isNotEmpty
-        ? r.advertisementData.advName
-        : r.device.platformName;
-    final serviceUuids =
-        r.advertisementData.serviceUuids.map((g) => g.str).toList();
+  TransportTarget? _toTarget(BleDevice device) {
+    final advName = device.name ?? '';
+    final serviceUuids = device.services;
     final desc = BoardRegistry.matchBle(
       serviceUuids: serviceUuids,
       advertisedName: advName,
@@ -130,11 +137,11 @@ class BleService extends TransportService {
     if (desc == null) return null;
     return TransportTarget(
       kind: TransportKind.ble,
-      id: r.device.remoteId.str,
-      displayName: advName.isEmpty ? r.device.remoteId.str : advName,
+      id: device.deviceId,
+      displayName: advName.isEmpty ? device.deviceId : advName,
       subtitle: desc.displayName,
       extra: {
-        'rssi': r.rssi,
+        'rssi': device.rssi,
         'descriptorId': desc.id,
         'serviceUuids': serviceUuids,
       },
@@ -152,69 +159,87 @@ class BleService extends TransportService {
     _setStatus(TransportStatus.connecting);
 
     try {
-      final device = BluetoothDevice.fromId(target.id);
-      _device = device;
+      final deviceId = target.id;
+      _deviceId = deviceId;
 
-      // Surface unexpected drops as transport events.
-      _connSub = device.connectionState.listen((s) {
-        if (s == BluetoothConnectionState.disconnected &&
-            _status == TransportStatus.connected) {
+      await UniversalBle.connect(deviceId,
+          timeout: const Duration(seconds: 15));
+
+      // Subscribe to connection-state changes *after* connecting so we don't
+      // catch a replayed `disconnected` that would tear down mid-flight
+      // (see SMP_INTEGRATION_HANDOFF.md §5 gotcha 1).
+      _connSub = UniversalBle.connectionStream(deviceId).listen((connected) {
+        if (!connected && _status == TransportStatus.connected) {
           _setStatus(TransportStatus.error, message: 'BLE link lost');
         }
       });
 
-      await device.connect(timeout: const Duration(seconds: 15));
-
       // Larger MTU = fewer notification fragments for our packet stream.
-      // No-op / unsupported on some platforms (e.g. macOS) — ignore failures.
+      // Best-effort / OS-managed on some platforms (e.g. macOS) — ignore
+      // failures.
       try {
-        await device.requestMtu(247);
+        await UniversalBle.requestMtu(deviceId, 247);
       } catch (_) {}
 
-      final services = await device.discoverServices();
+      final services = await UniversalBle.discoverServices(deviceId);
       final service = services.firstWhere(
-        (s) => _sameUuid(s.uuid.str, profile.serviceUuid),
+        (s) => _sameUuid(s.uuid, profile.serviceUuid),
         orElse: () =>
             throw StateError('Service ${profile.serviceUuid} not found'),
       );
+      _serviceUuid = service.uuid;
 
       if (_verbose) {
-        debugPrint('[OV-BLE] service ${service.uuid.str} characteristics: '
-            '${service.characteristics.map((c) => '${c.uuid.str}(${_props(c)})').join(', ')}');
+        debugPrint('[OV-BLE] service ${service.uuid} characteristics: '
+            '${service.characteristics.map((c) => '${c.uuid}(${_props(c)})').join(', ')}');
       }
 
-      _streamChar = service.characteristics.firstWhere(
-        (c) => _sameUuid(c.uuid.str, profile.streamCharacteristicUuid),
+      final streamChar = service.characteristics.firstWhere(
+        (c) => _sameUuid(c.uuid, profile.streamCharacteristicUuid),
         orElse: () => throw StateError('Stream characteristic not found'),
       );
+      _streamCharUuid = streamChar.uuid;
+
+      BleCharacteristic? commandChar;
       if (profile.commandCharacteristicUuid != null) {
         for (final c in service.characteristics) {
-          if (_sameUuid(c.uuid.str, profile.commandCharacteristicUuid!)) {
-            _commandChar = c;
+          if (_sameUuid(c.uuid, profile.commandCharacteristicUuid!)) {
+            commandChar = c;
+            _commandCharUuid = c.uuid;
             break;
           }
         }
       }
 
-      // lastValueStream fires on every notification (and reads). It is the
-      // most reliably-delivered notification stream across FBP versions —
-      // some setups don't surface notifications on onValueReceived.
+      // Decide write mode for the send() path from the characteristic that will
+      // carry host→board commands (command char if present, else stream char).
+      final writeChar = commandChar ?? streamChar;
+      _writeWithoutResponse =
+          !writeChar.properties.contains(CharacteristicProperty.write) &&
+              writeChar.properties
+                  .contains(CharacteristicProperty.writeWithoutResponse);
+
+      // Subscribe to the value stream before enabling notifications so no
+      // early notification is missed.
       _rxWindowStart = null;
-      _valueSub = _streamChar!.lastValueStream.listen(
+      _valueSub = UniversalBle.characteristicValueStream(
+        deviceId,
+        streamChar.uuid,
+      ).listen(
         (data) {
           _tallyRx(data);
           if (data.isNotEmpty) _bytesController.add(Uint8List.fromList(data));
         },
-        onError: (e) {
+        onError: (Object e) {
           debugPrint('[OV-BLE] rx error: $e');
           _eventsController.add(TransportEvent(TransportStatus.error,
               message: 'BLE read error', error: e));
         },
       );
-      await _streamChar!.setNotifyValue(true);
+      await UniversalBle.subscribeNotifications(
+          deviceId, service.uuid, streamChar.uuid);
       if (_verbose) {
-        debugPrint('[OV-BLE] setNotifyValue(true) done; '
-            'isNotifying=${_streamChar!.isNotifying}');
+        debugPrint('[OV-BLE] subscribeNotifications done on ${streamChar.uuid}');
       }
 
       _setStatus(TransportStatus.connected);
@@ -234,12 +259,19 @@ class BleService extends TransportService {
 
   @override
   Future<void> send(Uint8List data) async {
-    final c = _commandChar ?? _streamChar;
-    if (c == null) throw StateError('BLE transport not connected');
-    // Prefer write-with-response when the characteristic supports it.
-    final withoutResponse =
-        !c.properties.write && c.properties.writeWithoutResponse;
-    await c.write(data, withoutResponse: withoutResponse);
+    final deviceId = _deviceId;
+    final serviceUuid = _serviceUuid;
+    final charUuid = _commandCharUuid ?? _streamCharUuid;
+    if (deviceId == null || serviceUuid == null || charUuid == null) {
+      throw StateError('BLE transport not connected');
+    }
+    await UniversalBle.write(
+      deviceId,
+      serviceUuid,
+      charUuid,
+      data,
+      withoutResponse: _writeWithoutResponse,
+    );
   }
 
   Future<void> _teardown() async {
@@ -251,31 +283,35 @@ class BleService extends TransportService {
       await _connSub?.cancel();
     } catch (_) {}
     _connSub = null;
-    try {
-      await _device?.disconnect();
-    } catch (_) {}
-    _device = null;
-    _streamChar = null;
-    _commandChar = null;
+    final deviceId = _deviceId;
+    if (deviceId != null) {
+      try {
+        await UniversalBle.disconnect(deviceId);
+      } catch (_) {}
+    }
+    _deviceId = null;
+    _serviceUuid = null;
+    _streamCharUuid = null;
+    _commandCharUuid = null;
+    _writeWithoutResponse = false;
     _target = null;
   }
 
   Future<bool> _ensureAdapterOn() async {
-    if (!await FlutterBluePlus.isSupported) return false;
-    if (FlutterBluePlus.adapterStateNow == BluetoothAdapterState.on) {
-      return true;
-    }
+    final state = await UniversalBle.getBluetoothAvailabilityState();
+    if (state == AvailabilityState.poweredOn) return true;
     try {
-      final state = await FlutterBluePlus.adapterState
+      final s = await UniversalBle.availabilityStream
           .where((s) =>
-              s == BluetoothAdapterState.on ||
-              s == BluetoothAdapterState.unavailable ||
-              s == BluetoothAdapterState.unauthorized)
+              s == AvailabilityState.poweredOn ||
+              s == AvailabilityState.unsupported ||
+              s == AvailabilityState.unauthorized)
           .first
           .timeout(const Duration(seconds: 4));
-      return state == BluetoothAdapterState.on;
+      return s == AvailabilityState.poweredOn;
     } catch (_) {
-      return FlutterBluePlus.adapterStateNow == BluetoothAdapterState.on;
+      return (await UniversalBle.getBluetoothAvailabilityState()) ==
+          AvailabilityState.poweredOn;
     }
   }
 
@@ -310,20 +346,20 @@ class BleService extends TransportService {
   }
 
   /// Compact property tag, e.g. 'NR' for notify+read.
-  static String _props(BluetoothCharacteristic c) {
+  static String _props(BleCharacteristic c) {
     final p = c.properties;
     final s = StringBuffer();
-    if (p.notify) s.write('N');
-    if (p.indicate) s.write('I');
-    if (p.read) s.write('R');
-    if (p.write) s.write('W');
-    if (p.writeWithoutResponse) s.write('w');
+    if (p.contains(CharacteristicProperty.notify)) s.write('N');
+    if (p.contains(CharacteristicProperty.indicate)) s.write('I');
+    if (p.contains(CharacteristicProperty.read)) s.write('R');
+    if (p.contains(CharacteristicProperty.write)) s.write('W');
+    if (p.contains(CharacteristicProperty.writeWithoutResponse)) s.write('w');
     return s.isEmpty ? '-' : s.toString();
   }
 
   static bool _sameUuid(String a, String b) {
-    // flutter_blue_plus may return short (16-bit) or full 128-bit forms;
-    // compare on the suffix so both shapes match.
+    // UUIDs may arrive as short (16-bit) or full 128-bit forms; compare on the
+    // suffix so both shapes match.
     final la = a.toLowerCase().replaceAll('-', '');
     final lb = b.toLowerCase().replaceAll('-', '');
     return la == lb || la.endsWith(lb) || lb.endsWith(la);

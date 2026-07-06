@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'controllers/connection_controller.dart';
+import 'controllers/developer_ble_controller.dart';
 import 'controllers/recording_controller.dart';
+import 'controllers/smp_controller.dart';
 import 'controllers/recordings_browser_controller.dart';
 import 'controllers/scan_controller.dart';
 import 'controllers/settings_controller.dart';
@@ -21,6 +23,8 @@ class OpenViewApp extends StatelessWidget {
   final ScanController scan;
   final RecordingController recording;
   final RecordingsBrowserController recordingsBrowser;
+  final DeveloperBleController developerBle;
+  final SmpController smp;
 
   const OpenViewApp({
     super.key,
@@ -32,6 +36,8 @@ class OpenViewApp extends StatelessWidget {
     required this.scan,
     required this.recording,
     required this.recordingsBrowser,
+    required this.developerBle,
+    required this.smp,
   });
 
   @override
@@ -47,6 +53,9 @@ class OpenViewApp extends StatelessWidget {
         ChangeNotifierProvider<RecordingController>.value(value: recording),
         ChangeNotifierProvider<RecordingsBrowserController>.value(
             value: recordingsBrowser),
+        ChangeNotifierProvider<DeveloperBleController>.value(
+            value: developerBle),
+        ChangeNotifierProvider<SmpController>.value(value: smp),
       ],
       child: Consumer<SettingsController>(
         builder: (_, settings, __) => MaterialApp.router(

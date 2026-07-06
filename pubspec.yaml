@@ -40,8 +40,9 @@ dependencies:
   # --- v3 additions ---
   go_router: ^14.6.2
   window_manager: ^0.4.3
-  flutter_blue_plus: ^1.32.12
   file_selector: ^1.0.3
+  universal_ble: ^2.0.1
+  cbor: ^6.5.1
 
 dependency_overrides:
   csv: ^5.0.2

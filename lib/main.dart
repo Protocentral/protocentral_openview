@@ -5,6 +5,8 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'controllers/connection_controller.dart';
+import 'controllers/developer_ble_controller.dart';
+import 'controllers/smp_controller.dart';
 import 'controllers/recording_controller.dart';
 import 'controllers/recordings_browser_controller.dart';
 import 'controllers/scan_controller.dart';
@@ -27,6 +29,8 @@ Future<void> main() async {
   final wifi = WifiService();
   final connection = ConnectionController(usb: usb, ble: ble, wifi: wifi);
   final scan = ScanController(usb: usb, ble: ble);
+  final developerBle = DeveloperBleController();
+  final smp = SmpController();
   final recording =
       RecordingController(connection: connection, settings: settings);
   final recordingsBrowser = RecordingsBrowserController(settings: settings);
@@ -53,6 +57,8 @@ Future<void> main() async {
       ble: ble,
       wifi: wifi,
       recording: recording,
+      developerBle: developerBle,
+      smp: smp,
     );
     windowManager.addListener(closer);
   }
@@ -66,6 +72,8 @@ Future<void> main() async {
     scan: scan,
     recording: recording,
     recordingsBrowser: recordingsBrowser,
+    developerBle: developerBle,
+    smp: smp,
   ));
 }
 
@@ -74,11 +82,15 @@ class _CloseHandler with WindowListener {
   final BleService ble;
   final WifiService wifi;
   final RecordingController recording;
+  final DeveloperBleController developerBle;
+  final SmpController smp;
   _CloseHandler({
     required this.usb,
     required this.ble,
     required this.wifi,
     required this.recording,
+    required this.developerBle,
+    required this.smp,
   });
 
   bool _shuttingDown = false;
@@ -108,6 +120,12 @@ class _CloseHandler with WindowListener {
     } catch (_) {}
     try {
       await wifi.disconnect();
+    } catch (_) {}
+    try {
+      await developerBle.disconnect();
+    } catch (_) {}
+    try {
+      await smp.disconnect();
     } catch (_) {}
 
     // 3. Skip the Flutter engine teardown.
