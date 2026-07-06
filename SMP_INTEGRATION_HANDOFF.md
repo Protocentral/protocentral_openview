@@ -311,6 +311,17 @@ against real hardware — copy their idioms. Capability checklist (universal_ble
    fine**, and is the whole reason native OpenView works where Web Bluetooth
    didn't. No app code needed beyond connecting.
 
+5. **MTU settles *after* connect on macOS/iOS — don't cache it at connect.**
+   CoreBluetooth runs the ATT MTU exchange just after the connection is up, so
+   `requestMtu` read inside `connect()` returns the **23-byte default** (→
+   `maxWriteLength` 20). This makes firmware DFU impossible (an SMP upload frame
+   can't fit). Fix (implemented): poll `requestMtu` for a few seconds post-connect
+   (`SmpController._settleMtu`) and re-query right before an upload; `ImgMgmt`
+   reads `maxWriteLength` **dynamically** so the chunk size tracks it. Verified on
+   a Move: `max write` rises from 20 → **244 B** (MTU 247) once settled. If it
+   *stays* 20, that's a **firmware** cap — raise `CONFIG_BT_L2CAP_TX_MTU` (+ ACL
+   buffer sizes) on the device; the app can't change it on macOS.
+
 ---
 
 ## 6. `SmpController` (mirrors the prototype's `DeviceService`)
@@ -379,12 +390,17 @@ framing + CBOR + fragment reassembly end-to-end against real hardware.
 - **Phase 2 — Generic polish.** SMP v1 `rc` **and** v2 `err` handling in
   `SmpClient`; robust reconnect; friendly "not an SMP device" gate; system-device
   merge; console export.
-- **Phase 3 — Firmware DFU (Image group).** Chunked signed-image upload
-  (SHA-256, offset resume, progress), test → reset → confirm. Respect
-  `os mcumgr-params` buf size + MTU for chunking. **Reuse Studio's proven
-  `imageUpload()`** from `smp_serial_client.dart` (device-driven offset chunking,
-  SHA-256, progress, `imageIndex` for multi-image MCUboot) — it's the reference
-  implementation; the prototype's `img_mgmt.dart upload()` is only a stub.
+- **Phase 3 — Firmware DFU (Image group). 🔨 BUILT — partially hardware-tested.**
+  `lib/mcumgr/img_mgmt.dart`: `list()` (parses image slots), `upload()` (SHA-256,
+  device-driven offset loop ported from Studio's `imageUpload()`, **BLE-aware chunk
+  sizing** from the transport's `maxWriteLength` so each request fits one write),
+  `test()`/`confirm()`/`erase()`. `SmpController` gains an `img` facade; the Device
+  Manager screen gains a **Firmware tab** (image list, file pick via `file_selector`,
+  upload progress bar, Test & Reset, Confirm running, Erase). `crypto` added; macOS
+  user-selected-files entitlement already present. Analyze + macOS build pass.
+  **Hardware status: `list()` (read images) VERIFIED on a Move. `upload()` / DFU
+  (test → reset → confirm) NOT yet tested — next up.** Watch the connected header's
+  "max write" (MTU) value if uploads misbehave — chunk sizing keys off it.
 - **Phase 4 — File Browser (FS group).** list/download/upload/delete over `/lfs`.
 - **Phase 5 — HPI_HS Health Store (ProtoCentral-only).** HELLO/TYPES/SYNC/
   SUMMARY/RECORDS. Port `hs_sample.dart` (18-byte LE stride) + `hs_type.dart`

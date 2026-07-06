@@ -43,6 +43,7 @@ dependencies:
   file_selector: ^1.0.3
   universal_ble: ^2.0.1
   cbor: ^6.5.1
+  crypto: ^3.0.7
 
 dependency_overrides:
   csv: ^5.0.2

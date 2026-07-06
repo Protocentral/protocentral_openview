@@ -21,11 +21,13 @@ class OsMgmt {
   static const int idMcumgrParams = 6;
 
   /// Throw an [SmpException] if [rsp] carries a non-zero MCUmgr result code
-  /// (SMP v1 `rc` or SMP v2 `err`).
+  /// (SMP v1 `rc` or SMP v2 `err`), with a human-readable label.
   SmpMessage _check(SmpMessage rsp) {
     final code = rsp.rc;
     if (code != null) {
-      throw SmpException.rc(rsp.group, rsp.id, rsp.seq, code);
+      throw SmpException(rsp.errorLabel ?? 'rc=$code', rsp.group, rsp.id,
+          rsp.seq,
+          rc: code);
     }
     return rsp;
   }

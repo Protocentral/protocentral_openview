@@ -68,9 +68,22 @@ class SmpBleTransport implements SmpTransport {
 
       // MTU is best-effort / OS-managed on some platforms. maxWriteLength =
       // MTU − 3 (ATT header) bounds outbound frame chunking for image upload.
+      // Request the max so DFU chunks are as large as the stack allows (fewer
+      // request/response round-trips). On Apple this is OS-managed and returns
+      // the auto-negotiated value regardless of the ask; on Android the ask
+      // matters. maxWriteLength stays null if unknown (img_mgmt uses a safe
+      // default then).
       try {
-        final mtu = await UniversalBle.requestMtu(deviceId, 247);
+        final mtu = await UniversalBle.requestMtu(deviceId, 512);
         if (mtu > 3) _maxWriteLength = mtu - 3;
+        debugPrint('[SMP-BLE] MTU=$mtu maxWrite=$_maxWriteLength');
+      } catch (_) {}
+
+      // Ask for a low-latency connection interval to speed up the serialized
+      // upload loop. Android-only in universal_ble; a no-op/throw elsewhere.
+      try {
+        await UniversalBle.requestConnectionPriority(
+            deviceId, BleConnectionPriority.highPerformance);
       } catch (_) {}
 
       final services = await UniversalBle.discoverServices(deviceId);
@@ -106,6 +119,19 @@ class SmpBleTransport implements SmpTransport {
       await _cleanup();
       rethrow;
     }
+  }
+
+  /// Re-query the negotiated MTU and update [maxWriteLength]. On macOS/iOS the
+  /// MTU exchange completes shortly *after* connect, so the value read during
+  /// [connect] can be the 23-byte default; call this once the link has settled
+  /// (or right before a large transfer). Returns the new maxWriteLength.
+  Future<int?> refreshMtu() async {
+    try {
+      final mtu = await UniversalBle.requestMtu(deviceId, 512);
+      if (mtu > 3) _maxWriteLength = mtu - 3;
+      debugPrint('[SMP-BLE] refreshMtu MTU=$mtu maxWrite=$_maxWriteLength');
+    } catch (_) {}
+    return _maxWriteLength;
   }
 
   @override

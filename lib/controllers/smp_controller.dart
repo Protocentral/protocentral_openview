@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+import '../mcumgr/img_mgmt.dart';
 import '../mcumgr/os_mgmt.dart';
 import '../smp/smp_ble_transport.dart';
 import '../smp/smp_client.dart';
@@ -68,8 +69,9 @@ class SmpController extends ChangeNotifier {
 
   SmpConnectionState _state = SmpConnectionState.disconnected;
 
-  /// OS management group — non-null only while connected.
+  /// MCUmgr group facades — non-null only while connected.
   OsMgmt? os;
+  ImgMgmt? img;
 
   // --- Public state --------------------------------------------------------
 
@@ -188,8 +190,15 @@ class SmpController extends ChangeNotifier {
       await transport.connect(); // throws if not an SMP device
       _client = SmpClient(transport, log: _log);
       os = OsMgmt(_client!);
+      // Read maxWriteLength dynamically — MTU negotiation settles just after
+      // connect on macOS/iOS, so a value cached here would be the 23-byte
+      // default.
+      img = ImgMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
       _connecting = false;
       notifyListeners();
+      // Poll the MTU for a few seconds so the header/chunk size reflect the
+      // negotiated value once the exchange completes.
+      unawaited(_settleMtu());
     } catch (e) {
       _connecting = false;
       _error = e.toString();
@@ -203,6 +212,28 @@ class SmpController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-query the negotiated MTU now (e.g. right before a firmware upload).
+  Future<void> refreshMtu() async {
+    await _transport?.refreshMtu();
+    notifyListeners();
+  }
+
+  /// Poll the MTU for a few seconds after connect. macOS/iOS negotiate the ATT
+  /// MTU just after the connection is up, so the value read during connect is
+  /// often the 23-byte default; this lets the header + chunk size reflect the
+  /// real value once it settles. Stops early once it rises above the default.
+  Future<void> _settleMtu() async {
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (_transport == null) return; // disconnected meanwhile
+      final before = _transport!.maxWriteLength;
+      await _transport!.refreshMtu();
+      final after = _transport!.maxWriteLength;
+      if (after != before) notifyListeners();
+      if ((after ?? 0) > 20) return; // negotiated a real MTU — done
+    }
+  }
+
   bool _tearingDown = false;
 
   Future<void> _teardown() async {
@@ -214,6 +245,7 @@ class SmpController extends ChangeNotifier {
       await _client?.dispose();
       _client = null;
       os = null;
+      img = null;
       final t = _transport;
       _transport = null;
       if (t != null) {

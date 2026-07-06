@@ -123,8 +123,86 @@ class SmpMessage {
 
   bool get isError => rc != null;
 
+  /// A human-readable label for the error code, if any. Chooses the group-
+  /// specific table for SMP v2 `err` (which names the group), else the generic
+  /// MGMT_ERR table for a v1 `rc`.
+  String? get errorLabel {
+    final code = rc;
+    if (code == null) return null;
+    if (payload['err'] is Map) {
+      return smpGroupErrorName(errGroup ?? group, code);
+    }
+    return smpMgmtErrorName(code);
+  }
+
   @override
   String toString() =>
       'SMP(op:${op.name} grp:0x${group.toRadixString(16)} id:$id seq:$seq '
       'len:${payload.length} keys)';
+}
+
+/// Generic MCUmgr result codes (`MGMT_ERR_*`) — SMP v1 top-level `rc`.
+String smpMgmtErrorName(int rc) {
+  const names = <int, String>{
+    0: 'ok',
+    1: 'unknown error',
+    2: 'no memory',
+    3: 'invalid argument',
+    4: 'timeout',
+    5: 'no entry (ENOENT)',
+    6: 'bad state',
+    7: 'response too large',
+    8: 'not supported',
+    9: 'corrupt',
+    10: 'busy',
+    11: 'access denied',
+    12: 'protocol version too old',
+    13: 'protocol version too new',
+  };
+  return names[rc] != null ? '${names[rc]} (rc=$rc)' : 'rc=$rc';
+}
+
+/// Group-specific error names for SMP v2 `err` — currently the Image group (1).
+/// Other groups fall back to just the numeric code.
+String smpGroupErrorName(int group, int rc) {
+  if (group == 1) {
+    const img = <int, String>{
+      0: 'ok',
+      1: 'unknown',
+      2: 'flash config query failed',
+      3: 'no image',
+      4: 'no TLVs',
+      5: 'invalid TLV',
+      6: 'multiple hashes in TLV',
+      7: 'TLV invalid size',
+      8: 'hash not found',
+      9: 'no free slot',
+      10: 'flash open failed',
+      11: 'flash read failed',
+      12: 'flash write failed',
+      13: 'flash erase failed',
+      14: 'invalid slot',
+      15: 'no free memory',
+      16: 'flash context already set',
+      17: 'flash context not set',
+      18: 'flash area device null',
+      19: 'invalid page offset',
+      20: 'invalid offset',
+      21: 'invalid length',
+      22: 'invalid image header',
+      23: 'invalid image header magic',
+      24: 'invalid hash',
+      25: 'invalid flash address',
+      26: 'version get failed',
+      27: 'current version is newer',
+      28: 'image already pending',
+      29: 'invalid image vector table',
+      30: 'image too large',
+      31: 'image data overrun',
+      32: 'image confirmation denied',
+      33: 'setting test to active denied',
+    };
+    return img[rc] != null ? 'image: ${img[rc]} (rc=$rc)' : 'image rc=$rc';
+  }
+  return 'group $group rc=$rc';
 }
