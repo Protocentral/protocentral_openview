@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import '../../../controllers/smp_controller.dart';
 import '../../../mcumgr/img_mgmt.dart';
+import '../../../models/hs_sample.dart';
+import '../../../models/hs_type.dart';
 import '../../../smp/smp_message.dart';
 import '../../../theme/app_spacing.dart';
 
@@ -255,31 +257,38 @@ class _ConnectedView extends StatelessWidget {
                 flex: 3,
                 child: Card(
                   margin: EdgeInsets.zero,
-                  child: DefaultTabController(
-                    length: 3,
-                    child: Column(
-                      children: [
-                        const TabBar(
-                          isScrollable: true,
-                          tabAlignment: TabAlignment.start,
-                          tabs: [
-                            Tab(text: 'Device Info'),
-                            Tab(text: 'Firmware'),
-                            Tab(text: 'Files'),
-                          ],
-                        ),
-                        const Expanded(
-                          child: TabBarView(
-                            children: [
-                              _DeviceInfoPanel(),
-                              _FirmwarePanel(),
-                              _FilesPanel(),
-                            ],
+                  child: Builder(builder: (context) {
+                    final showHs = smp.hasHealthStore;
+                    final tabs = <String>[
+                      'Device Info',
+                      'Firmware',
+                      'Files',
+                      if (showHs) 'Health Store',
+                    ];
+                    return DefaultTabController(
+                      key: ValueKey(tabs.length),
+                      length: tabs.length,
+                      child: Column(
+                        children: [
+                          TabBar(
+                            isScrollable: true,
+                            tabAlignment: TabAlignment.start,
+                            tabs: [for (final t in tabs) Tab(text: t)],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                const _DeviceInfoPanel(),
+                                const _FirmwarePanel(),
+                                const _FilesPanel(),
+                                if (showHs) const _HealthStorePanel(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -1133,6 +1142,242 @@ class _FilesPanelState extends State<_FilesPanel> {
           ),
         ],
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Health Store panel (HPI_HS group 0x1000 — ProtoCentral only)
+// ---------------------------------------------------------------------------
+
+class _HealthStorePanel extends StatefulWidget {
+  const _HealthStorePanel();
+
+  @override
+  State<_HealthStorePanel> createState() => _HealthStorePanelState();
+}
+
+class _HealthStorePanelState extends State<_HealthStorePanel> {
+  Map<int, HsType> _types = const {};
+  List<HsSample> _samples = const [];
+  Map<String, Object?>? _summary;
+
+  bool _busy = false;
+  int _fetched = 0;
+  String? _status;
+  bool _statusIsError = false;
+
+  void _setStatus(String s, {bool error = false}) {
+    if (!mounted) return;
+    setState(() {
+      _status = s;
+      _statusIsError = error;
+    });
+  }
+
+  Future<void> _run(String label, Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _status = null;
+    });
+    try {
+      await action();
+    } catch (e) {
+      _setStatus('$label failed: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _fetchTypes(SmpController smp) => _run('TYPES', () async {
+        final t = await smp.hs!.types();
+        if (mounted) setState(() => _types = t);
+        _setStatus('Fetched ${t.length} type registry entries.');
+      });
+
+  Future<void> _syncAll(SmpController smp) => _run('SYNC', () async {
+        setState(() => _fetched = 0);
+        final s = await smp.hs!.syncAll(onProgress: (n) {
+          if (mounted) setState(() => _fetched = n);
+        });
+        if (mounted) setState(() => _samples = s);
+        _setStatus('Synced ${s.length} samples.');
+      });
+
+  Future<void> _fetchSummary(SmpController smp) => _run('SUMMARY', () async {
+        final m = await smp.hs!.summary();
+        if (mounted) setState(() => _summary = m);
+        _setStatus('Summary: ${m.length} fields.');
+      });
+
+  Future<void> _ackHead(SmpController smp) => _run('ACK', () async {
+        final head = smp.hsHello?.head ?? 0;
+        await smp.hs!.ack(head);
+        _setStatus('ACKed seq $head (device may drop retained ≤ that).');
+      });
+
+  Future<void> _exportCsv() async {
+    if (_samples.isEmpty) {
+      _setStatus('Nothing to export — run SYNC first.', error: true);
+      return;
+    }
+    final loc = await getSaveLocation(suggestedName: 'hpi_hs_samples.csv');
+    if (loc == null) return;
+    final b = StringBuffer('seq,ts_utc_iso,type_id,type_key,value,real,unit,quality\n');
+    for (final s in _samples) {
+      final t = _types[s.type];
+      final real = t != null ? s.real(t).toString() : '';
+      b.writeln('${s.seq},${s.timestamp.toIso8601String()},${s.type},'
+          '${t?.key ?? ''},${s.value},$real,${t?.unit ?? ''},'
+          '"${HsQuality.describe(s.quality)}"');
+    }
+    await File(loc.path).writeAsString(b.toString());
+    _setStatus('Exported ${_samples.length} samples → ${loc.path}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final smp = context.watch<SmpController>();
+    final hello = smp.hsHello;
+    final busy = _busy;
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [
+        Text('Health Store · HPI_HS (0x1000)',
+            style: theme.textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.xs),
+        if (hello != null)
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              _MiniTag('schema v${hello.schema}'),
+              _MiniTag('group v${hello.group}'),
+              _MiniTag('dev ${hello.dev}'),
+              _MiniTag('head ${hello.head}'),
+              _MiniTag('${hello.types} types'),
+            ],
+          ),
+        const Divider(height: AppSpacing.lg),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            FilledButton.icon(
+              onPressed: busy ? null : () => _fetchTypes(smp),
+              icon: const Icon(Icons.list_alt, size: 16),
+              label: const Text('Types'),
+            ),
+            FilledButton.icon(
+              onPressed: busy ? null : () => _syncAll(smp),
+              icon: const Icon(Icons.sync, size: 16),
+              label: const Text('Sync all'),
+            ),
+            OutlinedButton.icon(
+              onPressed: busy ? null : () => _fetchSummary(smp),
+              icon: const Icon(Icons.summarize, size: 16),
+              label: const Text('Summary'),
+            ),
+            OutlinedButton.icon(
+              onPressed: busy ? null : () => _ackHead(smp),
+              icon: const Icon(Icons.done_all, size: 16),
+              label: const Text('ACK head'),
+            ),
+            OutlinedButton.icon(
+              onPressed: (busy || _samples.isEmpty) ? null : _exportCsv,
+              icon: const Icon(Icons.save_alt, size: 16),
+              label: const Text('Export CSV'),
+            ),
+          ],
+        ),
+        if (busy && _fetched > 0) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text('Synced $_fetched…', style: theme.textTheme.labelSmall),
+        ],
+        if (_status != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(_status!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                  fontFamily: 'JetBrainsMono',
+                  color: _statusIsError
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.onSurfaceVariant)),
+        ],
+
+        // Type registry
+        if (_types.isNotEmpty) ...[
+          const Divider(height: AppSpacing.lg),
+          Text('Type registry (${_types.length})',
+              style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.xs),
+          for (final t in _types.values)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Text(
+                '0x${t.id.toRadixString(16).padLeft(2, '0')}  '
+                '${t.key.padRight(14)} ${t.unit.padRight(6)} '
+                '/${t.scale}  ${t.klass.label}${t.derived ? ' (derived)' : ''}',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(fontFamily: 'JetBrainsMono'),
+              ),
+            ),
+        ],
+
+        // Samples
+        if (_samples.isNotEmpty) ...[
+          const Divider(height: AppSpacing.lg),
+          Text('Samples (${_samples.length}, showing last 100)',
+              style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.xs),
+          for (final s in _samples.reversed.take(100))
+            _SampleLine(sample: s, type: _types[s.type]),
+        ],
+
+        // Summary raw
+        if (_summary != null) ...[
+          const Divider(height: AppSpacing.lg),
+          Text('Summary', style: theme.textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.xs),
+          SelectableText(
+            _summary!.entries.map((e) => '${e.key}: ${e.value}').join('\n'),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(fontFamily: 'JetBrainsMono'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _SampleLine extends StatelessWidget {
+  final HsSample sample;
+  final HsType? type;
+  const _SampleLine({required this.sample, required this.type});
+
+  static String _fmtTs(DateTime d) {
+    String p(int n) => n.toString().padLeft(2, '0');
+    return '${p(d.month)}-${p(d.day)} ${p(d.hour)}:${p(d.minute)}:${p(d.second)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final t = type;
+    final real = t != null
+        ? '${sample.real(t).toStringAsFixed(t.scale > 1 ? 2 : 0)} ${t.unit}'
+        : 'v=${sample.value}';
+    final key = t?.key ?? '0x${sample.type.toRadixString(16)}';
+    final ts = _fmtTs(sample.timestamp.toLocal());
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Text(
+        '#${sample.seq}  $ts  ${key.padRight(14)} $real'
+        '${sample.isValid ? '' : '  [!valid]'}',
+        style: theme.textTheme.bodySmall
+            ?.copyWith(fontFamily: 'JetBrainsMono', fontSize: 11.5),
+      ),
     );
   }
 }

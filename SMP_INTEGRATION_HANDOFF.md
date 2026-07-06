@@ -410,10 +410,16 @@ framing + CBOR + fragment reassembly end-to-end against real hardware.
   a file-transfer panel (enter a `/lfs/...` path), not a browser. `SmpController`
   gains an `fs` facade; Device Manager gets a **Files tab** (stat / download-to-disk
   / upload-from-disk with progress).
-- **Phase 5 — HPI_HS Health Store (ProtoCentral-only).** HELLO/TYPES/SYNC/
-  SUMMARY/RECORDS. Port `hs_sample.dart` (18-byte LE stride) + `hs_type.dart`
-  registry. **Gate the screen on a successful HELLO.** Charts via OpenView's
-  existing chart stack (or `fl_chart`). See `docs/HPI_HS_API.md`.
+- **Phase 5 — HPI_HS Health Store (ProtoCentral-only). 🔨 BUILT — pending hardware
+  test.** Ported `lib/models/hs_type.dart` + `lib/models/hs_sample.dart` (18-byte LE
+  stride, `<IqBBi`) and `lib/mcumgr/hpi_hs.dart` (group `0x1000`: HELLO / TYPES /
+  SYNC + `syncAll` / SUMMARY / ACK / RECORDS list+get). `SmpController` gains an `hs`
+  facade and **probes HELLO on connect** — the **Health Store tab appears only when
+  HELLO succeeds** (non-HPI SMP devices reject the vendor group, so it stays hidden).
+  The tab shows the HELLO handshake, fetches + displays the TYPES registry, `syncAll`
+  → resolves samples against the registry (real value + unit + quality) → CSV export,
+  SUMMARY, and ACK. Charts (Records tier) left for a follow-up. See the Move's
+  `docs/HPI_HS_API.md`.
 
 ---
 

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import '../mcumgr/fs_mgmt.dart';
+import '../mcumgr/hpi_hs.dart';
 import '../mcumgr/img_mgmt.dart';
 import '../mcumgr/os_mgmt.dart';
 import '../smp/smp_ble_transport.dart';
@@ -74,6 +75,12 @@ class SmpController extends ChangeNotifier {
   OsMgmt? os;
   ImgMgmt? img;
   FsMgmt? fs;
+
+  /// ProtoCentral HPI_HS Health Store facade — non-null only while connected;
+  /// [hasHealthStore] is true only once a HELLO handshake succeeds.
+  HpiHs? hs;
+  bool hasHealthStore = false;
+  HsHello? hsHello;
 
   // --- Public state --------------------------------------------------------
 
@@ -197,11 +204,15 @@ class SmpController extends ChangeNotifier {
       // default.
       img = ImgMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
       fs = FsMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
+      hs = HpiHs(_client!);
       _connecting = false;
       notifyListeners();
       // Poll the MTU for a few seconds so the header/chunk size reflect the
       // negotiated value once the exchange completes.
       unawaited(_settleMtu());
+      // Probe the ProtoCentral Health Store group; reveal its tab only on a
+      // successful HELLO (non-HPI devices reject the vendor group).
+      unawaited(_probeHealthStore());
     } catch (e) {
       _connecting = false;
       _error = e.toString();
@@ -213,6 +224,22 @@ class SmpController extends ChangeNotifier {
   Future<void> disconnect() async {
     await _teardown();
     notifyListeners();
+  }
+
+  /// Probe the HPI_HS group with a HELLO. On success reveal the Health Store
+  /// (a non-HPI SMP device rejects the vendor group, so this stays hidden).
+  Future<void> _probeHealthStore() async {
+    final h = hs;
+    if (h == null) return;
+    try {
+      final hello = await h.hello();
+      if (_transport == null) return; // disconnected meanwhile
+      hsHello = hello;
+      hasHealthStore = true;
+      notifyListeners();
+    } catch (_) {
+      hasHealthStore = false;
+    }
   }
 
   /// Re-query the negotiated MTU now (e.g. right before a firmware upload).
@@ -250,6 +277,9 @@ class SmpController extends ChangeNotifier {
       os = null;
       img = null;
       fs = null;
+      hs = null;
+      hasHealthStore = false;
+      hsHello = null;
       final t = _transport;
       _transport = null;
       if (t != null) {
