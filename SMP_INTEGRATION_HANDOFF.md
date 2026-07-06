@@ -398,10 +398,18 @@ framing + CBOR + fragment reassembly end-to-end against real hardware.
   Manager screen gains a **Firmware tab** (image list, file pick via `file_selector`,
   upload progress bar, Test & Reset, Confirm running, Erase). `crypto` added; macOS
   user-selected-files entitlement already present. Analyze + macOS build pass.
-  **Hardware status: `list()` (read images) VERIFIED on a Move. `upload()` / DFU
-  (test → reset → confirm) NOT yet tested — next up.** Watch the connected header's
-  "max write" (MTU) value if uploads misbehave — chunk sizing keys off it.
-- **Phase 4 — File Browser (FS group).** list/download/upload/delete over `/lfs`.
+  **Hardware status: `list()` (read images) VERIFIED; `upload()` throughput VERIFIED
+  (~12–13 kB/s at 216 B chunks once MTU settles to 244 B — see §5.5). Full DFU
+  install (upload → test → reset → confirm boot) is a DEFERRED test** — when run,
+  likely blocked on the Move's `Failed to open flash area ID 1` (secondary slot)
+  firmware issue, not the app.
+- **Phase 4 — File transfer (FS group). 🔨 BUILT — pending hardware test.**
+  `lib/mcumgr/fs_mgmt.dart`: `stat()` (file size), `download()` + `upload()`
+  (offset-loop chunking, BLE-aware). NOTE: **stock Zephyr fs_mgmt has NO directory
+  listing and NO delete** — only file transfer + stat by absolute path — so this is
+  a file-transfer panel (enter a `/lfs/...` path), not a browser. `SmpController`
+  gains an `fs` facade; Device Manager gets a **Files tab** (stat / download-to-disk
+  / upload-from-disk with progress).
 - **Phase 5 — HPI_HS Health Store (ProtoCentral-only).** HELLO/TYPES/SYNC/
   SUMMARY/RECORDS. Port `hs_sample.dart` (18-byte LE stride) + `hs_type.dart`
   registry. **Gate the screen on a successful HELLO.** Charts via OpenView's

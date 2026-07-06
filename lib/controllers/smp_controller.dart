@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+import '../mcumgr/fs_mgmt.dart';
 import '../mcumgr/img_mgmt.dart';
 import '../mcumgr/os_mgmt.dart';
 import '../smp/smp_ble_transport.dart';
@@ -72,6 +73,7 @@ class SmpController extends ChangeNotifier {
   /// MCUmgr group facades — non-null only while connected.
   OsMgmt? os;
   ImgMgmt? img;
+  FsMgmt? fs;
 
   // --- Public state --------------------------------------------------------
 
@@ -194,6 +196,7 @@ class SmpController extends ChangeNotifier {
       // connect on macOS/iOS, so a value cached here would be the 23-byte
       // default.
       img = ImgMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
+      fs = FsMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
       _connecting = false;
       notifyListeners();
       // Poll the MTU for a few seconds so the header/chunk size reflect the
@@ -246,6 +249,7 @@ class SmpController extends ChangeNotifier {
       _client = null;
       os = null;
       img = null;
+      fs = null;
       final t = _transport;
       _transport = null;
       if (t != null) {
