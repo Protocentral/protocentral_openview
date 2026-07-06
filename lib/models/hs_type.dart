@@ -22,6 +22,23 @@ enum HsClass {
     }
   }
 
+  /// Accepts either the letter string (`D`/`C`/`E`) or a small integer code the
+  /// firmware may send instead (0=D, 1=C, 2=E).
+  static HsClass fromAny(Object? v) {
+    if (v is String) return fromKey(v);
+    if (v is num) {
+      switch (v.toInt()) {
+        case 0:
+          return HsClass.discrete;
+        case 1:
+          return HsClass.cumulative;
+        case 2:
+          return HsClass.event;
+      }
+    }
+    return HsClass.unknown;
+  }
+
   String get label => switch (this) {
         HsClass.discrete => 'discrete',
         HsClass.cumulative => 'cumulative',
@@ -69,19 +86,37 @@ class HsType {
   /// Android Health Connect record a bridge maps to (nullable).
   final String? healthConnect;
 
-  /// Build from a `TYPES` CBOR map entry.
+  /// Build from a `TYPES` CBOR map entry. Tolerant of the firmware sending a
+  /// field with a different-than-documented CBOR type (e.g. `class` as an int
+  /// code, `derived` as 0/1, numeric `key`/`unit`) — never throws on a type
+  /// mismatch.
   factory HsType.fromMap(Map<String, Object?> m) {
     return HsType(
-      id: (m['id'] as num).toInt(),
-      key: m['key'] as String? ?? '',
-      unit: m['unit'] as String? ?? '',
-      scale: (m['scale'] as num?)?.toInt() ?? 1,
-      klass: HsClass.fromKey(m['class'] as String?),
-      derived: (m['derived'] as bool?) ?? false,
-      healthKit: m['hk'] as String?,
-      healthConnect: m['hc'] as String?,
+      id: _int(m['id']),
+      key: _str(m['key']),
+      unit: _str(m['unit']),
+      scale: _int(m['scale'], 1),
+      klass: HsClass.fromAny(m['class']),
+      derived: _bool(m['derived']),
+      healthKit: _strOrNull(m['hk']),
+      healthConnect: _strOrNull(m['hc']),
     );
   }
+
+  static int _int(Object? v, [int fallback = 0]) {
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? fallback;
+    return fallback;
+  }
+
+  static String _str(Object? v, [String fallback = '']) =>
+      v == null ? fallback : v.toString();
+
+  static String? _strOrNull(Object? v) =>
+      (v == null || (v is String && v.isEmpty)) ? null : v.toString();
+
+  static bool _bool(Object? v) =>
+      v == true || v == 1 || v == '1' || v == 'true';
 
   /// Convert a raw fixed-point sample value to a real-unit double.
   double toReal(int value) => scale == 0 ? value.toDouble() : value / scale;

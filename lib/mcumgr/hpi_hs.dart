@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 import '../models/hs_sample.dart';
 import '../models/hs_type.dart';
@@ -138,11 +138,20 @@ class HpiHs {
       payload: {'from': from},
     ));
     final arr = (rsp.payload['types'] as List?) ?? const [];
+    if (arr.isNotEmpty) {
+      // One-time diagnostic: dump the raw shape of the first entry so wire-key
+      // / value-type surprises are visible in the console.
+      debugPrint('[HPI_HS] TYPES[0] raw = ${arr.first}');
+    }
     final out = <int, HsType>{};
     for (final e in arr) {
       if (e is Map) {
-        final t = HsType.fromMap(e.map((k, v) => MapEntry(k.toString(), v)));
-        out[t.id] = t;
+        try {
+          final t = HsType.fromMap(e.map((k, v) => MapEntry(k.toString(), v)));
+          out[t.id] = t;
+        } catch (err) {
+          debugPrint('[HPI_HS] skipped a TYPES entry: $err  raw=$e');
+        }
       }
     }
     return out;
