@@ -29,5 +29,4 @@ class Codec {
   }
 
   static int signExtend16(int v) => (v & 0xFFFF).toSigned(16);
-
 }

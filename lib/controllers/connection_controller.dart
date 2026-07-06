@@ -40,14 +40,15 @@ class ConnectionController extends ChangeNotifier {
   TransportService? _active;
   BoardDescriptor? _descriptor;
 
-  /// Raw-BLE mode: notifications are complete packet payloads (no framing), so
-  /// the byte-stream framer is bypassed and each chunk is decoded directly.
-  bool _rawBle = false;
-  int _rawBlePktType = 0;
+  /// BLE decodes via the transport's tagged [BleService.frames] stream (each
+  /// notification carries its own framing/packet-type), so the raw byte-stream
+  /// framer is driven from there instead of [TransportService.bytes].
+  bool _decodeViaBleFrames = false;
   PacketFramer? _framer;
   PacketRouter? _router;
   StreamSubscription<dynamic>? _bytesSub;
   StreamSubscription<dynamic>? _eventsSub;
+  StreamSubscription<BleFrame>? _bleFramesSub;
 
   TransportStatus _status = TransportStatus.idle;
   TransportStatus get status => _status;
@@ -124,13 +125,10 @@ class ConnectionController extends ChangeNotifier {
       transport.setProfile(descriptor.bleProfile!);
     }
 
-    // Raw (unframed) BLE: some firmwares (e.g. Sensything OX) stream payloads
-    // without the 0x0A 0xFA … 0x0B wrapper. In that mode each notification is
-    // one packet payload, decoded directly — the framer is bypassed.
-    final bleProfile =
-        target.kind == TransportKind.ble ? descriptor.bleProfile : null;
-    _rawBle = bleProfile != null && !bleProfile.framed;
-    _rawBlePktType = bleProfile?.rawPacketType ?? 0;
+    // BLE decodes from the tagged frames stream (see [_onBleFrame]); its
+    // notifications carry per-characteristic framing/packet-type, so USB/Wi-Fi
+    // keep the byte-stream framer while BLE bypasses [_onBytes] decoding.
+    _decodeViaBleFrames = target.kind == TransportKind.ble;
 
     _resetCounters();
     // Allocate one ring buffer per declared channel, sized for ~10 s window.
@@ -201,7 +199,13 @@ class ConnectionController extends ChangeNotifier {
       },
     );
 
-    _bytesSub = transport.bytes.listen(_onBytes);
+    // BLE routes through the tagged frames stream; other transports through the
+    // plain byte stream and the framer.
+    if (transport is BleService) {
+      _bleFramesSub = transport.frames.listen(_onBleFrame);
+    } else {
+      _bytesSub = transport.bytes.listen(_onBytes);
+    }
     _eventsSub = transport.events.listen((e) => _onTransportEvent(e));
     _active = transport;
 
@@ -212,8 +216,10 @@ class ConnectionController extends ChangeNotifier {
 
   Future<void> disconnect() async {
     await _bytesSub?.cancel();
+    await _bleFramesSub?.cancel();
     await _eventsSub?.cancel();
     _bytesSub = null;
+    _bleFramesSub = null;
     _eventsSub = null;
     try {
       await _active?.disconnect();
@@ -222,7 +228,7 @@ class ConnectionController extends ChangeNotifier {
     _descriptor = null;
     _framer = null;
     _router = null;
-    _rawBle = false;
+    _decodeViaBleFrames = false;
     _setStatus(TransportStatus.idle);
   }
 
@@ -253,13 +259,30 @@ class ConnectionController extends ChangeNotifier {
   void _onBytes(Uint8List chunk) {
     _bytesIn += chunk.length;
     _maybeLogRx(chunk);
-    if (_rawBle) {
-      // BLE delivers clean, message-framed packets — no byte-stream framing to
-      // resync, so decode each notification directly as one packet.
-      _onFramedPacket(
-          FramedPacket(pktType: _rawBlePktType, payload: chunk, known: true));
-    } else {
+    // BLE decode is driven from [_onBleFrame]; only USB/Wi-Fi feed the framer
+    // here.
+    if (!_decodeViaBleFrames) {
       _framer?.processChunk(chunk);
+    }
+    notifyListeners();
+  }
+
+  /// Handle one tagged BLE notification. A board may split its signals across
+  /// several characteristics, so each frame carries its own framing/packet-type
+  /// (see [BleService.frames]). Raw frames decode directly as one packet of
+  /// [BleFrame.pktType]; framed frames are handed to the framer (BLE delivers
+  /// complete messages, so no cross-notification resync is needed).
+  void _onBleFrame(BleFrame frame) {
+    _bytesIn += frame.payload.length;
+    _maybeLogRx(frame.payload);
+    if (frame.framed) {
+      _framer?.processChunk(frame.payload);
+    } else {
+      _onFramedPacket(FramedPacket(
+        pktType: frame.pktType,
+        payload: frame.payload,
+        known: _descriptor?.packet(frame.pktType) != null,
+      ));
     }
     notifyListeners();
   }
@@ -326,6 +349,7 @@ class ConnectionController extends ChangeNotifier {
   @override
   void dispose() {
     _bytesSub?.cancel();
+    _bleFramesSub?.cancel();
     _eventsSub?.cancel();
     super.dispose();
   }
