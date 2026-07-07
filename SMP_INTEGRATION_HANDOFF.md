@@ -423,8 +423,13 @@ framing + CBOR + fragment reassembly end-to-end against real hardware.
   HELLO succeeds** (non-HPI SMP devices reject the vendor group, so it stays hidden).
   The tab shows the HELLO handshake, fetches + displays the TYPES registry, `syncAll`
   → resolves samples against the registry (real value + unit + quality) → CSV export,
-  SUMMARY, and ACK. Charts (Records tier) left for a follow-up. See the Move's
-  `docs/HPI_HS_API.md`.
+  SUMMARY (typed dashboard cards via `hs_summary.dart`), ACK, and the **RECORDS tier**
+  (`Records` → `recordsList` → per-session download via `HpiHs.downloadRecord`
+  chunked-`get` loop + **CRC-32 verify** (`utils/crc32.dart`) → `HsRecordSamples`
+  decode (bytes-per-sample inferred from the header) → **fl_chart** multi-channel
+  viewer with Save-raw + ACK). Wire-detail caveats (all handled defensively): SUMMARY
+  keys, RECORDS header/`get` field names, record sample encoding — confirm against
+  real Move responses. See the Move's `docs/HPI_HS_API.md`.
 
 ---
 

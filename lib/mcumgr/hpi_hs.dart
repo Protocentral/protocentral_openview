@@ -1,9 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 
+import '../models/hs_record.dart';
 import '../models/hs_sample.dart';
 import '../models/hs_type.dart';
 import '../smp/smp_client.dart';
 import '../smp/smp_message.dart';
+import '../utils/crc32.dart';
 
 /// Result of a `HELLO` handshake.
 class HsHello {
@@ -35,52 +39,14 @@ class HsSyncPage {
   final bool more; // whether further pages remain
 }
 
-/// Header of an episodic raw-signal **record** session (`RECORDS list`).
-class HsRecordHeader {
-  const HsRecordHeader({
-    required this.id,
-    required this.startTs,
-    required this.signal,
-    required this.sampleFormat,
-    required this.channels,
-    required this.sampleRate,
-    required this.nSamples,
-    required this.byteLen,
-    required this.crc32,
-    required this.flags,
-  });
+/// Result of a full record download.
+class HsRecordDownload {
+  const HsRecordDownload({required this.data, required this.crcOk});
+  final Uint8List data;
 
-  final int id;
-  final int startTs;
-  final int signal;
-  final int sampleFormat;
-  final int channels;
-  final int sampleRate;
-  final int nSamples;
-  final int byteLen;
-  final int crc32;
-  final int flags; // e.g. PARTIAL
-
-  static int _i(Map m, List<String> keys) {
-    for (final k in keys) {
-      final v = m[k];
-      if (v is num) return v.toInt();
-    }
-    return 0;
-  }
-
-  factory HsRecordHeader.fromMap(Map<Object?, Object?> m) => HsRecordHeader(
-        id: _i(m, ['id']),
-        startTs: _i(m, ['start_ts', 'ts', 'start']),
-        signal: _i(m, ['signal', 'sig']),
-        sampleFormat: _i(m, ['fmt', 'sample_format']),
-        channels: _i(m, ['ch', 'channels']),
-        sampleRate: _i(m, ['sr', 'sample_rate', 'rate']),
-        nSamples: _i(m, ['n', 'n_samples', 'nsamp']),
-        byteLen: _i(m, ['len', 'byte_len', 'bytes']),
-        crc32: _i(m, ['crc', 'crc32']),
-        flags: _i(m, ['flags']),
-      );
+  /// True if the reassembled payload's CRC-32 matched the header's `crc32`
+  /// (or the header carried no crc, i.e. `crc32 == 0`).
+  final bool crcOk;
 }
 
 /// Client for the **custom HPI_HS MCUmgr group** (id `0x1000`) — the ProtoCentral
@@ -236,6 +202,31 @@ class HpiHs {
         ? data
         : Uint8List.fromList(((data as List?) ?? const []).cast<int>());
     return (data: bytes, eof: (rsp.payload['eof'] as bool?) ?? false);
+  }
+
+  /// Download a full record: loop `RECORDS get` by offset until `eof`,
+  /// reassemble the payload, and CRC-32 verify it against the header `crc32`.
+  Future<HsRecordDownload> downloadRecord(
+    HsRecordHeader header, {
+    int chunk = 512,
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final out = BytesBuilder(copy: false);
+    int off = 0;
+    final total = header.byteLen;
+    onProgress?.call(0, total);
+    while (true) {
+      final res = await recordsGet(id: header.id, off: off, len: chunk);
+      out.add(res.data);
+      off += res.data.length;
+      onProgress?.call(off, total);
+      if (res.eof || res.data.isEmpty || (total > 0 && off >= total)) break;
+    }
+    final bytes = out.toBytes();
+    final crcOk = header.crc32 == 0
+        ? true
+        : Crc32.compute(bytes) == (header.crc32 & 0xFFFFFFFF);
+    return HsRecordDownload(data: bytes, crcOk: crcOk);
   }
 
   /// `RECORDS ack` — device may drop that record after sync.
