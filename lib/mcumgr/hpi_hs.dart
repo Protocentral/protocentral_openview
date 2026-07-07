@@ -5,8 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../models/hs_record.dart';
 import '../models/hs_sample.dart';
 import '../models/hs_type.dart';
-import '../smp/smp_client.dart';
-import '../smp/smp_message.dart';
+import 'package:mcumgr_dart/mcumgr_dart.dart';
 import '../utils/crc32.dart';
 
 /// Result of a `HELLO` handshake.

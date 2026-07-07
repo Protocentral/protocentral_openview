@@ -44,6 +44,11 @@ dependencies:
   universal_ble: ^2.0.1
   cbor: ^6.5.1
   crypto: ^3.0.7
+  # Pure-Dart SMP/MCUmgr core, extracted from this app. Vendored in-tree as a
+  # git submodule (packages/mcumgr_dart -> Protocentral/mcumgr_dart) so clones
+  # build anywhere; kept as a path dep even after the package is on pub.dev.
+  mcumgr_dart:
+    path: packages/mcumgr_dart
 
 dependency_overrides:
   csv: ^5.0.2

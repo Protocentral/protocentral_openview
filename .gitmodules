@@ -1,0 +1,3 @@
+[submodule "packages/mcumgr_dart"]
+	path = packages/mcumgr_dart
+	url = ../mcumgr_dart.git

@@ -3,14 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-import '../mcumgr/fs_mgmt.dart';
+import 'package:mcumgr_dart/mcumgr_dart.dart';
 import '../mcumgr/hpi_hs.dart';
-import '../mcumgr/img_mgmt.dart';
-import '../mcumgr/os_mgmt.dart';
 import '../smp/smp_ble_transport.dart';
-import '../smp/smp_client.dart';
-import '../smp/smp_message.dart';
-import '../smp/smp_transport.dart';
 
 /// A pickable SMP device from a scan.
 class SmpScanTarget {

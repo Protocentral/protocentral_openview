@@ -8,12 +8,11 @@ import 'package:provider/provider.dart';
 
 import '../../../controllers/smp_controller.dart';
 import '../../../mcumgr/hpi_hs.dart';
-import '../../../mcumgr/img_mgmt.dart';
+import 'package:mcumgr_dart/mcumgr_dart.dart';
 import '../../../models/hs_record.dart';
 import '../../../models/hs_sample.dart';
 import '../../../models/hs_summary.dart';
 import '../../../models/hs_type.dart';
-import '../../../smp/smp_message.dart';
 import '../../../theme/app_spacing.dart';
 
 /// SMP / MCUmgr **Device Manager** — a top-level destination for managing any

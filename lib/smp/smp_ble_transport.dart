@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-import 'smp_transport.dart';
+import 'package:mcumgr_dart/mcumgr_dart.dart';
 
 /// SMP transport over BLE GATT, on `universal_ble`.
 ///
