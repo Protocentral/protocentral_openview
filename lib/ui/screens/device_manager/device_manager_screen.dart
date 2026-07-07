@@ -46,8 +46,11 @@ class DeviceManagerScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Expanded(
-            child:
-                smp.isConnected ? _ConnectedView(smp: smp) : _ScanView(smp: smp),
+            child: smp.reconnecting
+                ? _ReconnectingView(smp: smp)
+                : smp.isConnected
+                    ? _ConnectedView(smp: smp)
+                    : _ScanView(smp: smp),
           ),
         ],
       ),
@@ -191,6 +194,42 @@ class _DeviceTile extends StatelessWidget {
           ],
         ),
         onTap: enabled ? onConnect : null,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reconnecting view — shown after an unexpected drop while auto-retrying
+// ---------------------------------------------------------------------------
+
+class _ReconnectingView extends StatelessWidget {
+  final SmpController smp;
+  const _ReconnectingView({required this.smp});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+              width: 32, height: 32, child: CircularProgressIndicator()),
+          const SizedBox(height: AppSpacing.md),
+          Text('Reconnecting to ${smp.deviceLabel ?? 'device'}…',
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text('The link dropped (e.g. the device rebooted). Retrying…',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: smp.disconnect,
+            icon: const Icon(Icons.close, size: 18),
+            label: const Text('Cancel'),
+          ),
+        ],
       ),
     );
   }
@@ -1434,6 +1473,12 @@ class _ConsolePanel extends StatelessWidget {
                 Text('SMP console', style: theme.textTheme.labelLarge),
                 const Spacer(),
                 TextButton.icon(
+                  onPressed:
+                      entries.isEmpty ? null : () => _exportConsole(context, entries),
+                  icon: const Icon(Icons.save_alt, size: 16),
+                  label: const Text('Export'),
+                ),
+                TextButton.icon(
                   onPressed: entries.isEmpty ? null : smp.clearConsole,
                   icon: const Icon(Icons.clear_all, size: 16),
                   label: const Text('Clear'),
@@ -1507,6 +1552,36 @@ class _ConsoleLine extends StatelessWidget {
     if (v is List) return '[${v.length}]';
     return '$v';
   }
+}
+
+/// Save the SMP console to a `.log` file (one full line per request/response).
+Future<void> _exportConsole(
+    BuildContext context, List<ConsoleEntry> entries) async {
+  final loc = await getSaveLocation(suggestedName: 'smp-console.log');
+  if (loc == null) return;
+  final b = StringBuffer();
+  for (final e in entries) {
+    final m = e.message;
+    final dir = e.outbound ? 'TX' : 'RX';
+    final payload =
+        m.payload.entries.map((x) => '${x.key}=${_exportVal(x.value)}').join(' ');
+    final rc = m.rc != null ? '  rc=${m.rc}' : '';
+    b.writeln('${e.timestamp.toIso8601String()}  $dir  '
+        'grp=${m.group} id=${m.id} seq=${m.seq}  {$payload}$rc');
+  }
+  await File(loc.path).writeAsString(b.toString());
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Exported ${entries.length} lines → ${loc.path}')),
+    );
+  }
+}
+
+String _exportVal(Object? v) {
+  if (v is String) return '"$v"';
+  if (v is List) return '<${v.length} bytes>';
+  if (v is Map) return '{${v.length} keys}';
+  return '$v';
 }
 
 // ---------------------------------------------------------------------------

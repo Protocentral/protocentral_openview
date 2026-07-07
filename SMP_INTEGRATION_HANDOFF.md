@@ -387,9 +387,14 @@ framing + CBOR + fragment reassembly end-to-end against real hardware.
   **Device Manager** nav destination. `cbor` added. **Echo round-trips on a real
   Move (`r:"…"` returns correctly)** → BLE transport + SMP framing + CBOR +
   fragment reassembly + seq matching all proven end-to-end.
-- **Phase 2 — Generic polish.** SMP v1 `rc` **and** v2 `err` handling in
-  `SmpClient`; robust reconnect; friendly "not an SMP device" gate; system-device
-  merge; console export.
+- **Phase 2 — Generic polish. ✅ DONE.** SMP v1 `rc` **and** v2 `err` handling
+  (`SmpMessage.rc`/`errorLabel`, named codes); friendly "not an SMP device" gate
+  (`SmpBleTransport` throws → screen shows it); system-device merge (`getSystemDevices`);
+  **console export** (SMP console → `.log` via `file_selector`); **robust auto-reconnect**
+  — `SmpController` remembers the last device and, on an *unexpected* drop (link lost /
+  device reboot after `os reset` / DFU), tears down the dead transport and retries the
+  same device up to 3× with backoff (a *user* disconnect sets `_intentionalDisconnect`
+  and skips it). Device Manager shows a "Reconnecting…" view with Cancel.
 - **Phase 3 — Firmware DFU (Image group). 🔨 BUILT — partially hardware-tested.**
   `lib/mcumgr/img_mgmt.dart`: `list()` (parses image slots), `upload()` (SHA-256,
   device-driven offset loop ported from Studio's `imageUpload()`, **BLE-aware chunk

@@ -62,12 +62,21 @@ class SmpController extends ChangeNotifier {
   bool _scanning = false;
   bool _loadingSystem = false;
   bool _connecting = false;
+  bool _reconnecting = false;
   String? _error;
 
   SmpBleTransport? _transport;
   SmpClient? _client;
   StreamSubscription<BleDevice>? _scanSub;
   StreamSubscription<SmpConnectionState>? _stateSub;
+
+  // Reconnect bookkeeping.
+  String? _lastDeviceId;
+  String? _lastDeviceName;
+  bool _intentionalDisconnect = false;
+
+  /// Max automatic reconnect attempts after an unexpected drop.
+  static const int _maxReconnectAttempts = 3;
 
   SmpConnectionState _state = SmpConnectionState.disconnected;
 
@@ -87,10 +96,12 @@ class SmpController extends ChangeNotifier {
   bool get scanning => _scanning;
   bool get loadingSystem => _loadingSystem;
   bool get connecting => _connecting;
+  bool get reconnecting => _reconnecting;
   bool get isConnected => _state == SmpConnectionState.connected;
   SmpConnectionState get state => _state;
   String? get error => _error;
-  String? get deviceLabel => _transport?.deviceLabel;
+  String? get deviceLabel =>
+      _transport?.deviceLabel ?? _lastDeviceName ?? _lastDeviceId;
   int? get maxWriteLength => _transport?.maxWriteLength;
 
   /// Discoverable devices, strongest signal first. Unnamed peripherals are
@@ -179,40 +190,16 @@ class SmpController extends ChangeNotifier {
   Future<void> connect(String deviceId, {String? name}) async {
     if (_connecting || isConnected) return;
     await stopScan();
+    _lastDeviceId = deviceId;
+    _lastDeviceName = name;
+    _intentionalDisconnect = false;
     _connecting = true;
     _error = null;
     notifyListeners();
-
-    final transport = SmpBleTransport(deviceId, name: name);
-    _transport = transport;
-    _stateSub = transport.stateChanges.listen((s) {
-      _state = s;
-      notifyListeners();
-      // The device dropped the link on its own (e.g. it rebooted after
-      // `os reset`) — tear the subsystem down so no transport/controllers leak.
-      if (s == SmpConnectionState.disconnected && !_tearingDown) {
-        unawaited(_teardown());
-      }
-    });
-
     try {
-      await transport.connect(); // throws if not an SMP device
-      _client = SmpClient(transport, log: _log);
-      os = OsMgmt(_client!);
-      // Read maxWriteLength dynamically — MTU negotiation settles just after
-      // connect on macOS/iOS, so a value cached here would be the 23-byte
-      // default.
-      img = ImgMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
-      fs = FsMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
-      hs = HpiHs(_client!);
+      await _establish(deviceId, name);
       _connecting = false;
       notifyListeners();
-      // Poll the MTU for a few seconds so the header/chunk size reflect the
-      // negotiated value once the exchange completes.
-      unawaited(_settleMtu());
-      // Probe the ProtoCentral Health Store group; reveal its tab only on a
-      // successful HELLO (non-HPI devices reject the vendor group).
-      unawaited(_probeHealthStore());
     } catch (e) {
       _connecting = false;
       _error = e.toString();
@@ -221,9 +208,98 @@ class SmpController extends ChangeNotifier {
     }
   }
 
+  /// Bring up a fresh transport + client + facades for [deviceId]. Throws on
+  /// failure (caller decides whether to surface an error or retry). Shared by
+  /// [connect] and the auto-reconnect path.
+  Future<void> _establish(String deviceId, String? name) async {
+    final transport = SmpBleTransport(deviceId, name: name);
+    _transport = transport;
+    _stateSub = transport.stateChanges.listen((s) {
+      _state = s;
+      notifyListeners();
+      if (s == SmpConnectionState.disconnected && !_tearingDown) {
+        // Distinguish a user-requested disconnect from an unexpected drop
+        // (e.g. the device rebooted after `os reset` / a DFU install, or the
+        // link was lost). Only the latter triggers an auto-reconnect.
+        if (_intentionalDisconnect) {
+          unawaited(_teardown());
+        } else {
+          unawaited(_reconnect());
+        }
+      }
+    });
+
+    await transport.connect(); // throws if not an SMP device
+    _client = SmpClient(transport, log: _log);
+    os = OsMgmt(_client!);
+    // Read maxWriteLength dynamically — MTU negotiation settles just after
+    // connect on macOS/iOS, so a value cached here would be the 23-byte default.
+    img = ImgMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
+    fs = FsMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
+    hs = HpiHs(_client!);
+    notifyListeners();
+    // Poll the MTU for a few seconds so the header/chunk size reflect the
+    // negotiated value once the exchange completes.
+    unawaited(_settleMtu());
+    // Probe the ProtoCentral Health Store group; reveal its tab only on a
+    // successful HELLO (non-HPI devices reject the vendor group).
+    unawaited(_probeHealthStore());
+  }
+
+  /// User-requested disconnect — no auto-reconnect.
   Future<void> disconnect() async {
+    _intentionalDisconnect = true;
+    _reconnecting = false;
     await _teardown();
     notifyListeners();
+  }
+
+  /// Auto-reconnect after an unexpected drop. Tears down the dead transport,
+  /// then retries the same device a few times with a short backoff. Cancellable
+  /// by a user disconnect (which sets [_intentionalDisconnect]).
+  Future<void> _reconnect() async {
+    if (_reconnecting) return;
+    final id = _lastDeviceId;
+    await _teardown(); // dispose the dead client/transport (keeps _lastDeviceId)
+    if (id == null || _intentionalDisconnect) return;
+
+    _reconnecting = true;
+    _error = null;
+    notifyListeners();
+
+    for (var attempt = 1; attempt <= _maxReconnectAttempts; attempt++) {
+      if (_intentionalDisconnect) break;
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (_intentionalDisconnect) break;
+      try {
+        await _establish(id, _lastDeviceName);
+        if (_intentionalDisconnect) {
+          await _teardown(); // user disconnected mid-reconnect
+          _reconnecting = false;
+          notifyListeners();
+          return;
+        }
+        _reconnecting = false;
+        notifyListeners();
+        return;
+      } catch (_) {
+        await _teardown(); // clean up the failed attempt before retrying
+      }
+    }
+
+    _reconnecting = false;
+    if (!_intentionalDisconnect) {
+      _error = 'Reconnect failed after $_maxReconnectAttempts attempts';
+    }
+    notifyListeners();
+  }
+
+  /// Manually retry connecting to the last device (e.g. from a UI button).
+  Future<void> reconnect() async {
+    final id = _lastDeviceId;
+    if (id == null || _reconnecting || isConnected) return;
+    _intentionalDisconnect = false;
+    await connect(id, name: _lastDeviceName);
   }
 
   /// Probe the HPI_HS group with a HELLO. On success reveal the Health Store
