@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 /// Describes a 2-D matrix stream (e.g., a 48x48 depth-map).
 class MatrixSpec {
   final String id;

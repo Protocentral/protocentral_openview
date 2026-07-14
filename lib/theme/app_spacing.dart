@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'package:flutter/widgets.dart';
 
 /// ProtoCentral Design System v3 — spacing tokens.

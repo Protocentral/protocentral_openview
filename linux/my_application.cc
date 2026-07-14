@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>

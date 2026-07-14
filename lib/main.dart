@@ -1,3 +1,7 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -18,12 +22,28 @@ import 'transport/wifi_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('[OV] main: binding ready');
 
   // Build the full controller graph here so the close handler can reach
   // them directly. OpenViewApp registers them as Provider.value.
+  //
+  // IMPORTANT (iOS launch): do not await platform plugins indefinitely before
+  // runApp. path_provider / BLE channels can race plugin registration on
+  // cold start (especially physical iOS 26 + Flutter 3.38+), which presents as
+  // "Installing and launching…" hanging forever.
   final settings = SettingsController();
-  await settings.load();
+  try {
+    await settings.load().timeout(const Duration(seconds: 4));
+    debugPrint('[OV] main: settings loaded');
+  } catch (e) {
+    debugPrint('[OV] main: settings.load skipped/failed: $e');
+  }
 
+  final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+
+  // USB is desktop-only. Instantiating UsbSerialService on mobile is fine
+  // (scan returns empty; no serialport FFI until scan/connect), but we still
+  // construct it so the same graph works on every platform.
   final usb = UsbSerialService();
   final ble = BleService();
   final wifi = WifiService();
@@ -34,8 +54,8 @@ Future<void> main() async {
   final recording =
       RecordingController(connection: connection, settings: settings);
   final recordingsBrowser = RecordingsBrowserController(settings: settings);
+  debugPrint('[OV] main: controllers ready');
 
-  final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
   if (isDesktop) {
     await windowManager.ensureInitialized();
     const opts = WindowOptions(
@@ -61,8 +81,10 @@ Future<void> main() async {
       smp: smp,
     );
     windowManager.addListener(closer);
+    debugPrint('[OV] main: desktop window ready');
   }
 
+  debugPrint('[OV] main: runApp');
   runApp(OpenViewApp(
     usb: usb,
     ble: ble,

@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import java.util.Properties
 import java.util.Base64
 import java.io.FileInputStream

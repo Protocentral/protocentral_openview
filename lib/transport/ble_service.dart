@@ -1,42 +1,88 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:universal_ble/universal_ble.dart';
+// Hide GATT-model [BleService] — this file's transport class has the same name.
+import 'package:universal_ble/universal_ble.dart' hide BleService;
 
 import '../boards/board_registry.dart';
 import '../boards/transport_profile.dart';
 import 'transport_service.dart';
 
-/// BLE transport via `universal_ble`.
+/// One BLE notification, tagged with the routing info of the characteristic it
+/// arrived on. Emitted on [BleService.frames] so the [ConnectionController] can
+/// route each notification to the right decoder — essential for boards that
+/// split signals across multiple characteristics (e.g. HealthyPi 5).
+class BleFrame {
+  /// True when the payload is a full ProtoCentral frame (`0x0A … 0x0B`).
+  final bool framed;
+
+  /// Packet type to decode the payload as when [framed] is false.
+  final int pktType;
+
+  final Uint8List payload;
+
+  const BleFrame({
+    required this.framed,
+    required this.pktType,
+    required this.payload,
+  });
+}
+
+/// BLE transport via **`universal_ble`** (replaces the earlier
+/// `flutter_blue_plus` integration).
 ///
-/// BLE is currently available only for the **Sensything family** of devices —
-/// they are the only boards that declare a [BleProfile]. Scanning is therefore
-/// filtered to the GATT service UUIDs advertised by BLE-capable descriptors in
-/// the registry, so non-Sensything peripherals never appear in the results.
+/// BLE is available for boards that declare a [BleProfile] (currently
+/// Sensything OX/CAP and HealthyPi 5). Scanning keeps only peripherals that
+/// resolve via [BoardRegistry.matchBle] (advertised name and/or service UUID).
 ///
-/// The active board's [BleProfile] (service + characteristic UUIDs) is supplied
-/// by [ConnectionController] via [setProfile] before [connect], mirroring the
-/// way the USB transport receives its baud rate.
+/// The active board's [BleProfile] is supplied by [ConnectionController] via
+/// [setProfile] before [connect], mirroring the USB baud-rate hand-off.
+/// Multi-characteristic profiles (HealthyPi 5) subscribe to every
+/// [BleProfile.resolvedStreams] entry and emit tagged [BleFrame]s; single-char
+/// profiles (Sensything) collapse to one stream via the same path.
 ///
-/// **Plugin note:** BLE is provided by `universal_ble` (BSD-3, all platforms
-/// incl. web). It is a **static/singleton** API keyed by `deviceId` (not
-/// device-object methods), so this service holds the device id + resolved
-/// service/characteristic UUIDs as strings. The [TransportService] abstraction
-/// keeps the BLE plugin swappable — preserve it.
+/// **Plugin note (critical):** this branch standardizes on `universal_ble`
+/// (BSD-3, all platforms incl. web). Older branches / `main` may still show
+/// HealthyPi multi-char code written for `flutter_blue_plus` — port *logic*
+/// here, do **not** reintroduce that package. universal_ble is a
+/// **static/singleton** API keyed by `deviceId` (not device-object methods),
+/// so this service holds the device id + resolved UUID strings. The
+/// [TransportService] abstraction keeps the BLE plugin swappable — preserve it
+/// (do not leak plugin types past this class).
 class BleService extends TransportService {
   /// Flip to true to re-enable BLE bring-up diagnostics (characteristic list,
   /// notify status, per-second RX throughput).
   static const bool _verbose = false;
 
   BleService() {
-    // Silence verbose native logging — at 125 Hz the per-notification logs
-    // flood the console. Raise to BleLogLevel.verbose only when debugging the
-    // stack. (No-op in release builds — universal_ble gates logging on kDebugMode.)
-    UniversalBle.setLogLevel(_verbose ? BleLogLevel.verbose : BleLogLevel.none);
+    // Do NOT call platform channels from the constructor. On iOS the Flutter
+    // engine can still be wiring plugins when controllers are built in main();
+    // an early `setLogLevel` can stall launch. Logging is configured lazily
+    // on first scan/connect instead.
+  }
+
+  bool _logLevelConfigured = false;
+
+  /// Best-effort log-level setup — safe to call after plugins are ready.
+  Future<void> _ensureLogLevel() async {
+    if (_logLevelConfigured) return;
+    _logLevelConfigured = true;
+    try {
+      // Silence verbose native logging — at 125 Hz the per-notification logs
+      // flood the console. Raise to BleLogLevel.verbose only when debugging.
+      await UniversalBle.setLogLevel(
+          _verbose ? BleLogLevel.verbose : BleLogLevel.none);
+    } catch (_) {
+      // Plugin not ready / unsupported — ignore; scanning still works.
+    }
   }
 
   final _bytesController = StreamController<Uint8List>.broadcast();
   final _eventsController = StreamController<TransportEvent>.broadcast();
+  final _framesController = StreamController<BleFrame>.broadcast();
 
   TransportStatus _status = TransportStatus.idle;
   TransportTarget? _target;
@@ -47,12 +93,16 @@ class BleService extends TransportService {
   // Active-connection handles. universal_ble is keyed by these strings rather
   // than by a device object.
   String? _deviceId;
-  String? _serviceUuid;
-  String? _streamCharUuid;
+
+  /// Resolved stream endpoints (service + char UUID) for teardown / diagnostics.
+  final List<({String serviceUuid, String charUuid})> _streamEndpoints = [];
+
+  /// Command write target (service + char). Falls back to the first stream char.
+  String? _commandServiceUuid;
   String? _commandCharUuid;
   bool _writeWithoutResponse = false;
 
-  StreamSubscription<Uint8List>? _valueSub;
+  final List<StreamSubscription<Uint8List>> _valueSubs = [];
   StreamSubscription<bool>? _connSub;
 
   // Per-second RX throughput tally (diagnostic).
@@ -77,6 +127,12 @@ class BleService extends TransportService {
   @override
   Stream<TransportEvent> get events => _eventsController.stream;
 
+  /// Per-notification tagged stream. Each event carries the payload plus the
+  /// framing/packet-type routing info of the characteristic it arrived on, so a
+  /// board that streams different signals on different characteristics decodes
+  /// correctly. [ConnectionController] listens here for BLE instead of [bytes].
+  Stream<BleFrame> get frames => _framesController.stream;
+
   /// Supply the BLE GATT profile for the board about to be connected.
   void setProfile(BleProfile profile) {
     _profile = profile;
@@ -86,6 +142,7 @@ class BleService extends TransportService {
   Future<List<TransportTarget>> scan({
     Duration timeout = const Duration(seconds: 5),
   }) async {
+    await _ensureLogLevel();
     if (!await _ensureAdapterOn()) {
       _eventsController.add(const TransportEvent(
         TransportStatus.error,
@@ -98,9 +155,9 @@ class BleService extends TransportService {
     final found = <String, TransportTarget>{};
 
     // Scan broadly and keep only peripherals that resolve to a BLE-capable
-    // (Sensything) descriptor — by advertised service UUID *or* name. This is
-    // more robust than an adapter-level service filter for devices that
-    // advertise their name but not their primary service UUID.
+    // descriptor — by advertised service UUID *or* name. This is more robust
+    // than an adapter-level service filter for devices that advertise their
+    // name but not their primary service UUID.
     final sub = UniversalBle.scanStream.listen((device) {
       final t = _toTarget(device);
       if (t != null) found[t.id] = t;
@@ -132,8 +189,7 @@ class BleService extends TransportService {
       serviceUuids: serviceUuids,
       advertisedName: advName,
     );
-    // BLE is Sensything-only: ignore peripherals that don't resolve to a
-    // BLE-capable descriptor.
+    // Ignore peripherals that don't resolve to a BLE-capable descriptor.
     if (desc == null) return null;
     return TransportTarget(
       kind: TransportKind.ble,
@@ -159,6 +215,7 @@ class BleService extends TransportService {
     _setStatus(TransportStatus.connecting);
 
     try {
+      await _ensureLogLevel();
       final deviceId = target.id;
       _deviceId = deviceId;
 
@@ -182,64 +239,172 @@ class BleService extends TransportService {
       } catch (_) {}
 
       final services = await UniversalBle.discoverServices(deviceId);
-      final service = services.firstWhere(
-        (s) => _sameUuid(s.uuid, profile.serviceUuid),
-        orElse: () =>
-            throw StateError('Service ${profile.serviceUuid} not found'),
-      );
-      _serviceUuid = service.uuid;
 
-      if (_verbose) {
-        debugPrint('[OV-BLE] service ${service.uuid} characteristics: '
-            '${service.characteristics.map((c) => '${c.uuid}(${_props(c)})').join(', ')}');
+      // universal_ble's GATT service type is also named BleService — keep it
+      // hidden (import) and work via the list elements' inferred types.
+      dynamic findService(String uuid) {
+        for (final s in services) {
+          if (_sameUuid(s.uuid, uuid)) return s;
+        }
+        return null;
       }
 
-      final streamChar = service.characteristics.firstWhere(
-        (c) => _sameUuid(c.uuid, profile.streamCharacteristicUuid),
-        orElse: () => throw StateError('Stream characteristic not found'),
-      );
-      _streamCharUuid = streamChar.uuid;
+      // Always dump the discovered GATT layout — useful for validating a
+      // board's BleProfile. Also surface it in the app Console via a transport
+      // event when verbose.
+      final gatt = _describeGatt(services);
+      if (_verbose) {
+        debugPrint('[OV-BLE] discovered GATT:\n$gatt');
+        _eventsController.add(TransportEvent(TransportStatus.connecting,
+            message: 'GATT: $gatt'));
+      }
 
+      // Subscribe to every declared stream characteristic — they may live in
+      // different services. Each notification is tagged with its stream's
+      // framing/packet-type so downstream routing knows which decoder to use.
+      // A declared-but-absent characteristic is skipped (not fatal) so a
+      // partially-correct profile still streams what it can during bring-up.
+      _rxWindowStart = null;
+      final missing = <String>[];
+      BleCharacteristic? firstStreamChar;
+      String? firstStreamServiceUuid;
+
+      for (final spec in profile.resolvedStreams) {
+        BleCharacteristic? ch;
+        String? resolvedServiceUuid;
+
+        final service = findService(spec.serviceUuid);
+        if (service != null) {
+          for (final c in service.characteristics as List<BleCharacteristic>) {
+            if (_sameUuid(c.uuid, spec.characteristicUuid)) {
+              ch = c;
+              resolvedServiceUuid = service.uuid as String;
+              break;
+            }
+          }
+        }
+        // Fall back to a device-wide search — characteristic UUIDs are unique,
+        // so this tolerates a stream declared under the wrong service.
+        if (ch == null) {
+          for (final s in services) {
+            for (final c in s.characteristics) {
+              if (_sameUuid(c.uuid, spec.characteristicUuid)) {
+                ch = c;
+                resolvedServiceUuid = s.uuid;
+                break;
+              }
+            }
+            if (ch != null) break;
+          }
+        }
+        if (ch == null || resolvedServiceUuid == null) {
+          missing.add(spec.characteristicUuid);
+          debugPrint('[OV-BLE] declared stream characteristic '
+              '${spec.characteristicUuid} (svc ${spec.serviceUuid}) not found '
+              '— skipping');
+          continue;
+        }
+
+        final characteristic = ch;
+        final serviceUuid = resolvedServiceUuid;
+        firstStreamChar ??= characteristic;
+        firstStreamServiceUuid ??= serviceUuid;
+        _streamEndpoints
+            .add((serviceUuid: serviceUuid, charUuid: characteristic.uuid));
+
+        // Subscribe to the value stream before enabling notifications so no
+        // early notification is missed. Stream is keyed by characteristic UUID.
+        final sub = UniversalBle.characteristicValueStream(
+          deviceId,
+          characteristic.uuid,
+        ).listen(
+          (data) {
+            _tallyRx(data);
+            if (data.isEmpty) return;
+            final bytes = Uint8List.fromList(data);
+            _bytesController.add(bytes);
+            _framesController.add(BleFrame(
+              framed: spec.framed,
+              pktType: spec.pktType,
+              payload: bytes,
+            ));
+          },
+          onError: (Object e) {
+            debugPrint('[OV-BLE] rx error: $e');
+            _eventsController.add(TransportEvent(TransportStatus.error,
+                message: 'BLE read error', error: e));
+          },
+        );
+        _valueSubs.add(sub);
+        await UniversalBle.subscribeNotifications(
+            deviceId, serviceUuid, characteristic.uuid);
+        if (_verbose) {
+          debugPrint('[OV-BLE] notify on ${characteristic.uuid} '
+              '(pkt ${spec.pktType}, framed=${spec.framed})');
+        }
+      }
+
+      if (_streamEndpoints.isEmpty) {
+        throw StateError('No declared stream characteristics found. '
+            'Discovered GATT:\n$gatt');
+      }
+      if (missing.isNotEmpty) {
+        _eventsController.add(TransportEvent(TransportStatus.connecting,
+            message: 'Some characteristics not found (streaming anyway): '
+                '${missing.join(', ')}'));
+      }
+
+      // Command characteristic — may be in its own service.
       BleCharacteristic? commandChar;
       if (profile.commandCharacteristicUuid != null) {
-        for (final c in service.characteristics) {
-          if (_sameUuid(c.uuid, profile.commandCharacteristicUuid!)) {
-            commandChar = c;
-            _commandCharUuid = c.uuid;
-            break;
+        final cmdUuid = profile.commandCharacteristicUuid!;
+        final prefer = <dynamic>[
+          if (profile.commandServiceUuid != null)
+            findService(profile.commandServiceUuid!)
+          else
+            ...services,
+        ];
+        for (final s in prefer) {
+          if (s == null) continue;
+          for (final c in s.characteristics as List<BleCharacteristic>) {
+            if (_sameUuid(c.uuid, cmdUuid)) {
+              commandChar = c;
+              _commandServiceUuid = s.uuid as String;
+              _commandCharUuid = c.uuid;
+              break;
+            }
+          }
+          if (commandChar != null) break;
+        }
+        // Device-wide fallback if not under the preferred service.
+        if (commandChar == null) {
+          for (final s in services) {
+            for (final c in s.characteristics) {
+              if (_sameUuid(c.uuid, cmdUuid)) {
+                commandChar = c;
+                _commandServiceUuid = s.uuid;
+                _commandCharUuid = c.uuid;
+                break;
+              }
+            }
+            if (commandChar != null) break;
           }
         }
       }
 
       // Decide write mode for the send() path from the characteristic that will
-      // carry host→board commands (command char if present, else stream char).
-      final writeChar = commandChar ?? streamChar;
-      _writeWithoutResponse =
-          !writeChar.properties.contains(CharacteristicProperty.write) &&
-              writeChar.properties
-                  .contains(CharacteristicProperty.writeWithoutResponse);
-
-      // Subscribe to the value stream before enabling notifications so no
-      // early notification is missed.
-      _rxWindowStart = null;
-      _valueSub = UniversalBle.characteristicValueStream(
-        deviceId,
-        streamChar.uuid,
-      ).listen(
-        (data) {
-          _tallyRx(data);
-          if (data.isNotEmpty) _bytesController.add(Uint8List.fromList(data));
-        },
-        onError: (Object e) {
-          debugPrint('[OV-BLE] rx error: $e');
-          _eventsController.add(TransportEvent(TransportStatus.error,
-              message: 'BLE read error', error: e));
-        },
-      );
-      await UniversalBle.subscribeNotifications(
-          deviceId, service.uuid, streamChar.uuid);
-      if (_verbose) {
-        debugPrint('[OV-BLE] subscribeNotifications done on ${streamChar.uuid}');
+      // carry host→board commands (command char if present, else first stream).
+      final writeChar = commandChar ?? firstStreamChar;
+      if (writeChar != null) {
+        _writeWithoutResponse =
+            !writeChar.properties.contains(CharacteristicProperty.write) &&
+                writeChar.properties
+                    .contains(CharacteristicProperty.writeWithoutResponse);
+      }
+      // If no dedicated command char, send() uses the first stream endpoint.
+      if (_commandCharUuid == null && firstStreamChar != null) {
+        _commandServiceUuid = firstStreamServiceUuid;
+        _commandCharUuid = firstStreamChar.uuid;
       }
 
       _setStatus(TransportStatus.connected);
@@ -260,8 +425,8 @@ class BleService extends TransportService {
   @override
   Future<void> send(Uint8List data) async {
     final deviceId = _deviceId;
-    final serviceUuid = _serviceUuid;
-    final charUuid = _commandCharUuid ?? _streamCharUuid;
+    final serviceUuid = _commandServiceUuid;
+    final charUuid = _commandCharUuid;
     if (deviceId == null || serviceUuid == null || charUuid == null) {
       throw StateError('BLE transport not connected');
     }
@@ -275,10 +440,12 @@ class BleService extends TransportService {
   }
 
   Future<void> _teardown() async {
-    try {
-      await _valueSub?.cancel();
-    } catch (_) {}
-    _valueSub = null;
+    for (final sub in _valueSubs) {
+      try {
+        await sub.cancel();
+      } catch (_) {}
+    }
+    _valueSubs.clear();
     try {
       await _connSub?.cancel();
     } catch (_) {}
@@ -290,8 +457,8 @@ class BleService extends TransportService {
       } catch (_) {}
     }
     _deviceId = null;
-    _serviceUuid = null;
-    _streamCharUuid = null;
+    _streamEndpoints.clear();
+    _commandServiceUuid = null;
     _commandCharUuid = null;
     _writeWithoutResponse = false;
     _target = null;
@@ -315,10 +482,22 @@ class BleService extends TransportService {
     }
   }
 
+  /// Human-readable GATT dump for diagnostics / profile bring-up.
+  String _describeGatt(List<dynamic> services) {
+    final buf = StringBuffer();
+    for (final s in services) {
+      buf.writeln('  svc ${s.uuid}');
+      for (final c in s.characteristics as List<BleCharacteristic>) {
+        buf.writeln('    char ${c.uuid} (${_props(c)})');
+      }
+    }
+    return buf.toString().trimRight();
+  }
+
   /// Tally raw notification throughput and emit a once-per-second summary to
   /// the system log, e.g. `[OV-BLE] 1s: 11 notifs, 88 B/s, sizes={8}`. This
-  /// pins down whether the OX is under-sending (firmware) vs the app dropping
-  /// data (it isn't — every notification is counted here).
+  /// pins down whether the device is under-sending (firmware) vs the app
+  /// dropping data (it isn't — every notification is counted here).
   void _tallyRx(List<int> data) {
     if (!_verbose) return;
     _rxCount++;
@@ -376,6 +555,7 @@ class BleService extends TransportService {
     _teardown();
     if (!_bytesController.isClosed) _bytesController.close();
     if (!_eventsController.isClosed) _eventsController.close();
+    if (!_framesController.isClosed) _framesController.close();
     super.dispose();
   }
 }

@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'package:go_router/go_router.dart';
 
 import 'adaptive_scaffold.dart';

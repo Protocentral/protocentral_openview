@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 /// A single at-a-glance summary metric (one dashboard card).
 class HsSummaryCard {
   const HsSummaryCard({required this.label, required this.value, this.unit});

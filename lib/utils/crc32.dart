@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 /// Standard IEEE 802.3 / zlib CRC-32 (reflected, init `0xFFFFFFFF`, final XOR
 /// `0xFFFFFFFF`, polynomial `0xEDB88320`). Matches Zephyr's `crc32_ieee`, which
 /// is what the HPI_HS RECORDS header `crc32` field is computed with.

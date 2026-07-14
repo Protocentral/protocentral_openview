@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 /// Statistical class of a metric type (from the HPI_HS registry).
 ///
 ///  - [discrete]   D — avg / min / max (HR, SpO2, temp, HRV…)

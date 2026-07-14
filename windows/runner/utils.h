@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 #ifndef RUNNER_UTILS_H_
 #define RUNNER_UTILS_H_
 

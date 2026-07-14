@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 /// Describes a single 1-D time-series stream from a board.
 class ChannelSpec {
   final String id;

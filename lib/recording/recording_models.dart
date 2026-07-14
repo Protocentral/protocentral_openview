@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 /// Models for `.hpd` recordings — kept binary-compatible with HealthyPi
 /// Studio's `BIOSIG` v1 format so files round-trip between the two apps.
 ///

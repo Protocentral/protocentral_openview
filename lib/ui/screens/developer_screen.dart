@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -5,13 +8,14 @@ import 'package:universal_ble/universal_ble.dart';
 import '../../controllers/developer_ble_controller.dart';
 import '../../theme/app_spacing.dart';
 
-/// Developer tab — an **unfiltered** BLE playground.
+/// Developer tab — **unfiltered** BLE playground for general-purpose GATT /
+/// MCUmgr bring-up. Always in the main nav (not a hidden engineer mode).
 ///
 /// Scans and connects to *any* BLE peripheral (no board/registry filter),
 /// discovers its GATT table, and lets you read / write / subscribe to
-/// characteristics. Built for the `universal_ble` hardware spike
-/// (`SMP_INTEGRATION_HANDOFF.md` Phase 0) and general poking — it is fully
-/// decoupled from the streaming Connect flow, so it can't disturb it.
+/// characteristics. Fully decoupled from the streaming Connect flow and from
+/// Device Manager's SMP link, so it can be used as a general BLE/MCUmgr test
+/// tool alongside those destinations.
 class DeveloperScreen extends StatelessWidget {
   const DeveloperScreen({super.key});
 
@@ -34,8 +38,9 @@ class DeveloperScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Unfiltered BLE — scan and connect to any device. For the '
-            'universal_ble spike and general GATT testing.',
+            'Unfiltered BLE — scan and connect to any device. Discover GATT, '
+            'read/write/notify characteristics. General-purpose BLE and MCUmgr '
+            'bring-up tool (separate from streaming Connect and Device Manager).',
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),

@@ -68,8 +68,12 @@
 					<string>UIWindowScene</string>
 					<key>UISceneConfigurationName</key>
 					<string>flutter</string>
+					<!-- Must be the app's SceneDelegate subclass (Flutter 3.44
+					     template). Bare "FlutterSceneDelegate" can leave the
+					     process without a working scene → Xcode "Waiting to
+					     attach" forever on physical devices. -->
 					<key>UISceneDelegateClassName</key>
-					<string>FlutterSceneDelegate</string>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
 					<key>UISceneStoryboardFile</key>
 					<string>Main</string>
 				</dict>
