@@ -3,8 +3,11 @@
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../controllers/app_info_controller.dart';
 import '../../controllers/recordings_browser_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../theme/app_spacing.dart';
@@ -77,7 +80,102 @@ class SettingsScreen extends StatelessWidget {
 
         // --- Recording --------------------------------------------------
         const _RecordingDirCard(),
+        const SizedBox(height: AppSpacing.md),
+
+        // --- About ------------------------------------------------------
+        const _AboutCard(),
       ],
+    );
+  }
+}
+
+class _AboutCard extends StatelessWidget {
+  const _AboutCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final info = context.watch<AppInfoController>();
+
+    return _SectionCard(
+      icon: Icons.info_outline,
+      title: 'About',
+      subtitle: 'App identity and support details.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(AppInfoController.appName,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w600,
+                )),
+            subtitle: Text(
+              info.isLoaded
+                  ? '${info.version}'
+                      '${info.buildNumber.isNotEmpty ? '+${info.buildNumber}' : ''}'
+                  : '…',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            trailing: const Icon(Icons.copy, size: 18),
+            onLongPress: () async {
+              final text = info.fullVersionString;
+              await Clipboard.setData(ClipboardData(text: text));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Copied $text'),
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            onTap: () async {
+              // Tap also copies — mobile-friendly (long-press is less discoverable).
+              final text = info.fullVersionString;
+              await Clipboard.setData(ClipboardData(text: text));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Copied $text'),
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+          ),
+          const Divider(height: AppSpacing.lg),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(AppInfoController.companyName,
+                style: theme.textTheme.titleSmall),
+            subtitle: Text(AppInfoController.companyUrl,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            trailing: Icon(Icons.open_in_new,
+                size: 18, color: scheme.onSurfaceVariant),
+            onTap: () async {
+              final uri = Uri.parse(AppInfoController.companyUrl);
+              try {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Could not open link: $e'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 }

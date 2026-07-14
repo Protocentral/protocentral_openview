@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'controllers/app_info_controller.dart';
 import 'controllers/connection_controller.dart';
 import 'controllers/developer_ble_controller.dart';
 import 'controllers/recording_controller.dart';
@@ -22,6 +23,7 @@ class OpenViewApp extends StatelessWidget {
   final BleService ble;
   final WifiService wifi;
   final SettingsController settings;
+  final AppInfoController appInfo;
   final ConnectionController connection;
   final ScanController scan;
   final RecordingController recording;
@@ -35,6 +37,7 @@ class OpenViewApp extends StatelessWidget {
     required this.ble,
     required this.wifi,
     required this.settings,
+    required this.appInfo,
     required this.connection,
     required this.scan,
     required this.recording,
@@ -51,6 +54,7 @@ class OpenViewApp extends StatelessWidget {
         ChangeNotifierProvider<BleService>.value(value: ble),
         ChangeNotifierProvider<WifiService>.value(value: wifi),
         ChangeNotifierProvider<SettingsController>.value(value: settings),
+        ChangeNotifierProvider<AppInfoController>.value(value: appInfo),
         ChangeNotifierProvider<ConnectionController>.value(value: connection),
         ChangeNotifierProvider<ScanController>.value(value: scan),
         ChangeNotifierProvider<RecordingController>.value(value: recording),

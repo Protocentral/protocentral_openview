@@ -2,16 +2,23 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../controllers/app_info_controller.dart';
 import '../theme/app_spacing.dart';
 import 'app_routes.dart';
+import 'widgets/app_footer.dart';
 
 /// Top-level scaffold that adapts navigation to screen size.
 ///
 /// - Compact (< 600 dp): bottom NavigationBar (mobile)
 /// - Medium (< 1200 dp): NavigationRail (tablet, small desktop)
 /// - Expanded (>= 1200 dp): extended NavigationRail (desktop)
+///
+/// Every layout wraps the page body in a column with a slim [AppFooter]
+/// (OpenView version · ProtoCentral Electronics).
 class AdaptiveScaffold extends StatelessWidget {
   final Widget child;
   final String location;
@@ -46,6 +53,18 @@ class AdaptiveScaffold extends StatelessWidget {
     ctx.go(_destinations[idx].path);
   }
 
+  /// Page body + global footer. Footer sits above the mobile bottom nav so it
+  /// never competes with NavigationBar.
+  Widget _bodyWithFooter(Widget page) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: page),
+        const AppFooter(),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
@@ -55,7 +74,7 @@ class AdaptiveScaffold extends StatelessWidget {
 
     if (compact) {
       return Scaffold(
-        body: child,
+        body: _bodyWithFooter(child),
         bottomNavigationBar: NavigationBar(
           selectedIndex: selected,
           onDestinationSelected: (i) => _onSelect(context, i),
@@ -94,7 +113,7 @@ class AdaptiveScaffold extends StatelessWidget {
                 .toList(),
           ),
           const _RailSeparator(),
-          Expanded(child: child),
+          Expanded(child: _bodyWithFooter(child)),
         ],
       ),
     );
@@ -146,7 +165,7 @@ class _RailSeparator extends StatelessWidget {
 ///
 /// Collapsed: round badge only (~40×40).
 /// Extended: full white ProtoCentral wordmark logo above a distinct "OpenView"
-/// app name + version. Minimalist — one brand lockup, one app name.
+/// app name + real package version (from [AppInfoController]).
 class _BrandMark extends StatelessWidget {
   final bool extended;
   const _BrandMark({required this.extended});
@@ -158,6 +177,7 @@ class _BrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final info = context.watch<AppInfoController>();
 
     if (!extended) {
       // Round badge on a theme-aware circular tile (asset has no alpha around
@@ -212,10 +232,9 @@ class _BrandMark extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            // OpenView — the app name, distinct from the brand wordmark by
-            // colour (brand cyan), but using the app's standard UI typeface.
+            // OpenView — brand cyan, standard UI typeface.
             Text(
-              'OpenView',
+              AppInfoController.appName,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: scheme.primary,
@@ -224,11 +243,31 @@ class _BrandMark extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            Text(
-              'v3.0 alpha',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                letterSpacing: 1.2,
+            // Real package version; long-press copies full support string.
+            Tooltip(
+              message: 'Long-press to copy version',
+              waitDuration: const Duration(milliseconds: 600),
+              child: InkWell(
+                onLongPress: () async {
+                  final text = info.fullVersionString;
+                  await Clipboard.setData(ClipboardData(text: text));
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Copied $text'),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Text(
+                  info.versionPrefixed,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    letterSpacing: 1.2,
+                  ),
+                ),
               ),
             ),
           ],

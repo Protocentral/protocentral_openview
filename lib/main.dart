@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'controllers/app_info_controller.dart';
 import 'controllers/connection_controller.dart';
 import 'controllers/developer_ble_controller.dart';
 import 'controllers/smp_controller.dart';
@@ -37,6 +38,14 @@ Future<void> main() async {
     debugPrint('[OV] main: settings loaded');
   } catch (e) {
     debugPrint('[OV] main: settings.load skipped/failed: $e');
+  }
+
+  final appInfo = AppInfoController();
+  try {
+    await appInfo.load().timeout(const Duration(seconds: 3));
+    debugPrint('[OV] main: app info ${appInfo.fullVersionString}');
+  } catch (e) {
+    debugPrint('[OV] main: appInfo.load skipped/failed: $e');
   }
 
   final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
@@ -90,6 +99,7 @@ Future<void> main() async {
     ble: ble,
     wifi: wifi,
     settings: settings,
+    appInfo: appInfo,
     connection: connection,
     scan: scan,
     recording: recording,
