@@ -147,7 +147,7 @@ class BleService extends TransportService {
         ? r.advertisementData.advName
         : r.device.platformName;
     final serviceUuids =
-        r.advertisementData.serviceUuids.map((g) => g.str).toList();
+    r.advertisementData.serviceUuids.map((g) => g.str).toList();
     final desc = BoardRegistry.matchBle(
       serviceUuids: serviceUuids,
       advertisedName: advName,
@@ -260,7 +260,7 @@ class BleService extends TransportService {
         // most reliably-delivered notification stream across FBP versions —
         // some setups don't surface notifications on onValueReceived.
         final sub = characteristic.lastValueStream.listen(
-          (data) {
+              (data) {
             _tallyRx(data);
             if (data.isEmpty) return;
             final bytes = Uint8List.fromList(data);
@@ -368,9 +368,9 @@ class BleService extends TransportService {
     try {
       final state = await FlutterBluePlus.adapterState
           .where((s) =>
-              s == BluetoothAdapterState.on ||
-              s == BluetoothAdapterState.unavailable ||
-              s == BluetoothAdapterState.unauthorized)
+      s == BluetoothAdapterState.on ||
+          s == BluetoothAdapterState.unavailable ||
+          s == BluetoothAdapterState.unauthorized)
           .first
           .timeout(const Duration(seconds: 4));
       return state == BluetoothAdapterState.on;
@@ -435,12 +435,24 @@ class BleService extends TransportService {
     return s.isEmpty ? '-' : s.toString();
   }
 
-  static bool _sameUuid(String a, String b) {
-    // flutter_blue_plus may return short (16-bit) or full 128-bit forms;
-    // compare on the suffix so both shapes match.
-    final la = a.toLowerCase().replaceAll('-', '');
-    final lb = b.toLowerCase().replaceAll('-', '');
-    return la == lb || la.endsWith(lb) || lb.endsWith(la);
+  static bool _sameUuid(String a, String b) =>
+      _normalizeUuid(a) == _normalizeUuid(b);
+
+  /// Expands a 16-bit or 32-bit short-form UUID into its full 128-bit
+  /// Bluetooth Base UUID (`xxxxxxxx-0000-1000-8000-00805F9B34FB`) so it can be
+  /// compared against a 128-bit UUID from the profile or from
+  /// flutter_blue_plus (which may report either form depending on platform).
+  ///
+  /// NOTE: the short-form value is embedded at the *start* of the base UUID,
+  /// not the end — a previous version of this comparison matched on suffix,
+  /// which happened to work for custom 128-bit UUIDs (compared verbatim) but
+  /// silently failed to match any standard SIG short-form UUID (e.g. Heart
+  /// Rate 0x2A37, or a board's own short-form characteristic like HealthyPi
+  /// 5's ECG char 0x1424) against its correctly-expanded 128-bit form.
+  static String _normalizeUuid(String uuid) {
+    final s = uuid.toLowerCase().replaceAll('-', '');
+    if (s.length == 32) return s; // already full 128-bit
+    return s.padLeft(8, '0') + '00001000800000805f9b34fb';
   }
 
   void _setStatus(TransportStatus s, {String? message}) {
