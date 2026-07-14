@@ -1,0 +1,242 @@
+# Build OpenView release binaries for desktop + Android APK.
+#
+# Triggers:
+#   - Git tags matching v* (e.g. v3.0.0) → create/update a GitHub Release
+#   - workflow_dispatch → manual build; upload workflow artifacts only
+#
+# Artifacts:
+#   OpenView-linux-x64.zip
+#   OpenView-windows-x64.zip
+#   OpenView-macos.zip          (native arch of macos-latest, currently arm64)
+#   OpenView-android.apk        (release APK; signed with debug keys unless
+#                                KEYSTORE_* secrets are configured)
+name: Release builds
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with a known-good stable if builds break on latest.
+  # Empty = latest stable from the action.
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  # ── Linux desktop ──────────────────────────────────────────────────────
+  linux:
+    name: Linux x64
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libudev-dev
+
+      - name: Flutter config & deps
+        run: |
+          flutter config --enable-linux-desktop
+          flutter pub get
+
+      - name: Build Linux release
+        run: flutter build linux --release
+
+      - name: Package
+        run: |
+          cd build/linux/x64/release/bundle
+          zip -r "$GITHUB_WORKSPACE/OpenView-linux-x64.zip" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenView-linux-x64
+          path: OpenView-linux-x64.zip
+          if-no-files-found: error
+
+  # ── Windows desktop ────────────────────────────────────────────────────
+  windows:
+    name: Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Flutter config & deps
+        run: |
+          flutter config --enable-windows-desktop
+          flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/windows/x64/runner/Release/* `
+            -DestinationPath OpenView-windows-x64.zip -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenView-windows-x64
+          path: OpenView-windows-x64.zip
+          if-no-files-found: error
+
+  # ── macOS desktop ──────────────────────────────────────────────────────
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Install build tools (libserialport)
+        run: brew install automake libtool
+
+      - name: Flutter config & deps
+        run: |
+          flutter config --enable-macos-desktop
+          flutter pub get
+
+      - name: Build macOS release
+        run: flutter build macos --release
+
+      - name: Package
+        run: |
+          # PRODUCT_NAME is OpenView → OpenView.app
+          APP=$(find build/macos -name 'OpenView.app' -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "OpenView.app not found under build/macos"
+            find build/macos -maxdepth 5 -type d -name '*.app' || true
+            exit 1
+          fi
+          echo "Packaging $APP"
+          # ditto preserves macOS app bundle metadata better than zip alone
+          ditto -c -k --sequesterRsrc --keepParent "$APP" OpenView-macos.zip
+          # Record runner arch for the release notes / asset name clarity
+          uname -m | tee macos-arch.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenView-macos
+          path: |
+            OpenView-macos.zip
+            macos-arch.txt
+          if-no-files-found: error
+
+  # ── Android APK ────────────────────────────────────────────────────────
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Flutter deps
+        run: flutter pub get
+
+      # Optional release signing via repository secrets:
+      #   KEYSTORE_BASE64, KEY_ALIAS, KEY_PASSWORD, STORE_PASSWORD
+      # Without secrets, the app is signed with the debug keystore
+      # (see android/app/build.gradle.kts).
+      - name: Build APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: flutter build apk --release
+
+      - name: Rename APK
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk OpenView-android.apk
+          ls -la OpenView-android.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenView-android
+          path: OpenView-android.apk
+          if-no-files-found: error
+
+  # ── Publish GitHub Release (tags only) ─────────────────────────────────
+  publish:
+    name: Publish GitHub Release
+    needs: [linux, windows, macos, android]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: false
+
+      - name: Flatten artifact files
+        run: |
+          mkdir -p release
+          # Each job uploaded a named artifact folder
+          find dist -type f \( -name '*.zip' -o -name '*.apk' \) -print -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/OpenView-linux-x64.zip
+            release/OpenView-windows-x64.zip
+            release/OpenView-macos.zip
+            release/OpenView-android.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
