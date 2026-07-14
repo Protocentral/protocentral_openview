@@ -3,8 +3,6 @@
 
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
-
 /// ProtoCentral framing protocol — generic v3 framer.
 ///
 /// Wire format:  [0x0A][0xFA][LEN_LSB][LEN_MSB][PKT_TYPE][...PAYLOAD...][0x0B]
