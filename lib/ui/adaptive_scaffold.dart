@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -20,6 +23,8 @@ class AdaptiveScaffold extends StatelessWidget {
     _NavDest(AppRoutes.live, 'Live', Icons.show_chart_outlined, Icons.show_chart),
     _NavDest(AppRoutes.recordings, 'Recordings', Icons.folder_outlined, Icons.folder),
     _NavDest(AppRoutes.console, 'Console', Icons.terminal_outlined, Icons.terminal),
+    _NavDest(AppRoutes.deviceManager, 'Device Mgr', Icons.dns_outlined, Icons.dns),
+    _NavDest(AppRoutes.developer, 'Developer', Icons.bug_report_outlined, Icons.bug_report),
     _NavDest(AppRoutes.settings, 'Settings', Icons.settings_outlined, Icons.settings),
   ];
 
@@ -31,7 +36,9 @@ class AdaptiveScaffold extends StatelessWidget {
     if (location.startsWith('/live')) return 2;
     if (location.startsWith('/recordings')) return 3;
     if (location.startsWith('/console')) return 4;
-    if (location.startsWith('/settings')) return 5;
+    if (location.startsWith('/device-manager')) return 5;
+    if (location.startsWith('/developer')) return 6;
+    if (location.startsWith('/settings')) return 7;
     return 0;
   }
 

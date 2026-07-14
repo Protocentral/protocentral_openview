@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import '../boards/board_descriptor.dart';
 import 'decoded_packet.dart';
 import 'packet_framer_v3.dart';

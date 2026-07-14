@@ -1,7 +1,12 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'package:go_router/go_router.dart';
 
 import 'adaptive_scaffold.dart';
 import 'screens/console_screen.dart';
+import 'screens/developer_screen.dart';
+import 'screens/device_manager/device_manager_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/live_screen.dart';
 import 'screens/recordings_screen.dart';
@@ -18,6 +23,8 @@ class AppRoutes {
   static const recordings = '/recordings';
   static const replay = '/replay';
   static const console = '/console';
+  static const deviceManager = '/device-manager';
+  static const developer = '/developer';
   static const settings = '/settings';
 
   static final router = GoRouter(
@@ -45,6 +52,11 @@ class AppRoutes {
             },
           ),
           GoRoute(path: console, builder: (_, __) => const ConsoleScreen()),
+          GoRoute(
+              path: deviceManager,
+              builder: (_, __) => const DeviceManagerScreen()),
+          GoRoute(
+              path: developer, builder: (_, __) => const DeveloperScreen()),
           GoRoute(path: settings, builder: (_, __) => const SettingsScreen()),
         ],
       ),

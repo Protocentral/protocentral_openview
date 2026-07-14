@@ -1,3 +1,6 @@
+# Copyright (c) 2024-2026 protocentral
+# SPDX-License-Identifier: MIT
+
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
 project(OpenView LANGUAGES CXX)

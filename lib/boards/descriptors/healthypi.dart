@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import '../board_descriptor.dart';
 import '../channel_spec.dart';
 import '../decoders/healthypi_decoders.dart';
@@ -86,13 +89,22 @@ const _bleProfile = BleProfile(
   commandServiceUuid: _svcCmdData,
   commandCharacteristicUuid: _charCmd,
   streams: [
-    BleStreamSpec(serviceUuid: _svcEcg, characteristicUuid: _charEcg, pktType: hpiBlePktEcg),
-    BleStreamSpec(serviceUuid: _svcEcg, characteristicUuid: _charResp, pktType: hpiBlePktResp),
-    BleStreamSpec(serviceUuid: _svcHrv, characteristicUuid: _charPpg, pktType: hpiBlePktPpg),
-    BleStreamSpec(serviceUuid: _svcHr, characteristicUuid: _charHr, pktType: hpiBlePktHr),
-    BleStreamSpec(serviceUuid: _svcSpo2, characteristicUuid: _charSpo2, pktType: hpiBlePktSpo2),
-    BleStreamSpec(serviceUuid: _svcTemp, characteristicUuid: _charTemp, pktType: hpiBlePktTemp),
-    BleStreamSpec(serviceUuid: _svcHrv, characteristicUuid: _charHrv, pktType: hpiBlePktRespRate),
+    BleStreamSpec(
+        serviceUuid: _svcEcg, characteristicUuid: _charEcg, pktType: hpiBlePktEcg),
+    BleStreamSpec(
+        serviceUuid: _svcEcg, characteristicUuid: _charResp, pktType: hpiBlePktResp),
+    BleStreamSpec(
+        serviceUuid: _svcHrv, characteristicUuid: _charPpg, pktType: hpiBlePktPpg),
+    BleStreamSpec(
+        serviceUuid: _svcHr, characteristicUuid: _charHr, pktType: hpiBlePktHr),
+    BleStreamSpec(
+        serviceUuid: _svcSpo2, characteristicUuid: _charSpo2, pktType: hpiBlePktSpo2),
+    BleStreamSpec(
+        serviceUuid: _svcTemp, characteristicUuid: _charTemp, pktType: hpiBlePktTemp),
+    BleStreamSpec(
+        serviceUuid: _svcHrv,
+        characteristicUuid: _charHrv,
+        pktType: hpiBlePktRespRate),
   ],
 );
 
@@ -129,13 +141,22 @@ final BoardDescriptor healthypiDescriptor = BoardDescriptor(
       decode: decodeHealthypiPkt4,
     ),
     // BLE per-characteristic packets (one signal each; see BleProfile above).
-    PacketSpec(pktType: hpiBlePktEcg, label: 'BLE ECG', decode: decodeHealthypiBleEcg),
-    PacketSpec(pktType: hpiBlePktResp, label: 'BLE Resp', decode: decodeHealthypiBleResp),
-    PacketSpec(pktType: hpiBlePktPpg, label: 'BLE PPG', decode: decodeHealthypiBlePpg),
-    PacketSpec(pktType: hpiBlePktHr, label: 'BLE HR', decode: decodeHealthypiBleHr),
-    PacketSpec(pktType: hpiBlePktSpo2, label: 'BLE SpO2', decode: decodeHealthypiBleSpo2),
-    PacketSpec(pktType: hpiBlePktTemp, label: 'BLE Temp', decode: decodeHealthypiBleTemp),
-    PacketSpec(pktType: hpiBlePktRespRate, label: 'BLE RespRate', decode: decodeHealthypiBleRespRate),
+    PacketSpec(
+        pktType: hpiBlePktEcg, label: 'BLE ECG', decode: decodeHealthypiBleEcg),
+    PacketSpec(
+        pktType: hpiBlePktResp, label: 'BLE Resp', decode: decodeHealthypiBleResp),
+    PacketSpec(
+        pktType: hpiBlePktPpg, label: 'BLE PPG', decode: decodeHealthypiBlePpg),
+    PacketSpec(
+        pktType: hpiBlePktHr, label: 'BLE HR', decode: decodeHealthypiBleHr),
+    PacketSpec(
+        pktType: hpiBlePktSpo2, label: 'BLE SpO2', decode: decodeHealthypiBleSpo2),
+    PacketSpec(
+        pktType: hpiBlePktTemp, label: 'BLE Temp', decode: decodeHealthypiBleTemp),
+    PacketSpec(
+        pktType: hpiBlePktRespRate,
+        label: 'BLE RespRate',
+        decode: decodeHealthypiBleRespRate),
   ],
   notes: 'HealthyPi 5 — nRF5340 MCU, ADS1293 ECG/BioZ, MAX30101 PPG. USB: '
       'combined packet 0x02, or firmware v1.0.0+ batch packets 0x03 (ECG+Resp) '
@@ -143,4 +164,3 @@ final BoardDescriptor healthypiDescriptor = BoardDescriptor(
       'several GATT services (ECG, HRV, HR, PLX, Thermometer), each streamed '
       'raw and routed to a synthetic per-signal packet type.',
 );
-

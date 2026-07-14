@@ -1,0 +1,410 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:universal_ble/universal_ble.dart';
+
+import 'package:mcumgr_dart/mcumgr_dart.dart';
+import '../mcumgr/hpi_hs.dart';
+import '../smp/smp_ble_transport.dart';
+
+/// A pickable SMP device from a scan.
+class SmpScanTarget {
+  final String deviceId;
+  final String? name;
+  final int? rssi;
+  final bool isSystemDevice;
+  const SmpScanTarget({
+    required this.deviceId,
+    required this.name,
+    required this.rssi,
+    this.isSystemDevice = false,
+  });
+
+  String get displayName =>
+      (name != null && name!.isNotEmpty) ? name! : '(unnamed)';
+}
+
+/// One line in the raw SMP console log.
+class ConsoleEntry {
+  ConsoleEntry(this.message, {required this.outbound})
+      : timestamp = DateTime.now();
+  final SmpMessage message;
+  final bool outbound;
+  final DateTime timestamp;
+}
+
+/// Owns the **SMP / MCUmgr Device Manager** subsystem — a decoupled BLE link
+/// (its own connection, separate from the streaming `ConnectionController`).
+///
+/// Scans broadly, connects to a chosen device, gates on the SMP service, and
+/// exposes the MCUmgr group facades (Phase 1: [os]) plus a raw request/response
+/// console. `universal_ble`'s command queue serialises access, so this coexists
+/// with the streaming `BleService`; don't drive both BLE flows at once.
+class SmpController extends ChangeNotifier {
+  // Convenience service filters for already-connected (bonded) system devices —
+  // CoreBluetooth omits connected peripherals from scans (handoff §5.2).
+  static const List<String> _systemDeviceServices = [
+    SmpBleTransport.smpServiceUuid,
+    '180a', // Device Information
+    '180f', // Battery
+  ];
+
+  static const int _maxConsole = 1000;
+
+  final Map<String, SmpScanTarget> _devices = {};
+  final List<ConsoleEntry> console = <ConsoleEntry>[];
+
+  bool _scanning = false;
+  bool _loadingSystem = false;
+  bool _connecting = false;
+  bool _reconnecting = false;
+  String? _error;
+
+  SmpBleTransport? _transport;
+  SmpClient? _client;
+  StreamSubscription<BleDevice>? _scanSub;
+  StreamSubscription<SmpConnectionState>? _stateSub;
+
+  // Reconnect bookkeeping.
+  String? _lastDeviceId;
+  String? _lastDeviceName;
+  bool _intentionalDisconnect = false;
+
+  /// Max automatic reconnect attempts after an unexpected drop.
+  static const int _maxReconnectAttempts = 3;
+
+  SmpConnectionState _state = SmpConnectionState.disconnected;
+
+  /// MCUmgr group facades — non-null only while connected.
+  OsMgmt? os;
+  ImgMgmt? img;
+  FsMgmt? fs;
+
+  /// ProtoCentral HPI_HS Health Store facade — non-null only while connected;
+  /// [hasHealthStore] is true only once a HELLO handshake succeeds.
+  HpiHs? hs;
+  bool hasHealthStore = false;
+  HsHello? hsHello;
+
+  // --- Public state --------------------------------------------------------
+
+  bool get scanning => _scanning;
+  bool get loadingSystem => _loadingSystem;
+  bool get connecting => _connecting;
+  bool get reconnecting => _reconnecting;
+  bool get isConnected => _state == SmpConnectionState.connected;
+  SmpConnectionState get state => _state;
+  String? get error => _error;
+  String? get deviceLabel =>
+      _transport?.deviceLabel ?? _lastDeviceName ?? _lastDeviceId;
+  int? get maxWriteLength => _transport?.maxWriteLength;
+
+  /// Discoverable devices, strongest signal first. Unnamed peripherals are
+  /// always hidden here — an SMP device the user wants to manage advertises a
+  /// name, and the noise of nameless beacons is not useful in this list.
+  List<SmpScanTarget> get devices {
+    final list = _devices.values
+        .where((t) => t.name != null && t.name!.isNotEmpty)
+        .toList();
+    list.sort((a, b) => (b.rssi ?? -999).compareTo(a.rssi ?? -999));
+    return list;
+  }
+
+  // --- Scanning ------------------------------------------------------------
+
+  Future<void> startScan() async {
+    if (_scanning) return;
+    if (!await _ensureAdapterOn()) {
+      _error = 'Bluetooth is off or unavailable';
+      notifyListeners();
+      return;
+    }
+    _devices.clear();
+    _error = null;
+    _scanning = true;
+    notifyListeners();
+
+    unawaited(refreshSystemDevices());
+
+    _scanSub = UniversalBle.scanStream.listen((d) {
+      _devices[d.deviceId] = SmpScanTarget(
+        deviceId: d.deviceId,
+        name: d.name,
+        rssi: d.rssi,
+      );
+      notifyListeners();
+    }, onError: (Object e) {
+      _error = 'Scan error: $e';
+      notifyListeners();
+    });
+
+    try {
+      await UniversalBle.startScan();
+    } catch (e) {
+      _error = 'startScan failed: $e';
+      await stopScan();
+    }
+  }
+
+  Future<void> stopScan() async {
+    if (!_scanning && _scanSub == null) return;
+    try {
+      await UniversalBle.stopScan();
+    } catch (_) {}
+    await _scanSub?.cancel();
+    _scanSub = null;
+    _scanning = false;
+    notifyListeners();
+  }
+
+  Future<void> refreshSystemDevices() async {
+    if (_loadingSystem) return;
+    _loadingSystem = true;
+    notifyListeners();
+    try {
+      final sys = await UniversalBle.getSystemDevices(
+          withServices: _systemDeviceServices);
+      for (final d in sys) {
+        _devices[d.deviceId] = SmpScanTarget(
+          deviceId: d.deviceId,
+          name: d.name,
+          rssi: d.rssi,
+          isSystemDevice: true,
+        );
+      }
+    } catch (_) {
+      // Non-fatal; system-device query is best-effort.
+    } finally {
+      _loadingSystem = false;
+      notifyListeners();
+    }
+  }
+
+  // --- Connection ----------------------------------------------------------
+
+  Future<void> connect(String deviceId, {String? name}) async {
+    if (_connecting || isConnected) return;
+    await stopScan();
+    _lastDeviceId = deviceId;
+    _lastDeviceName = name;
+    _intentionalDisconnect = false;
+    _connecting = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _establish(deviceId, name);
+      _connecting = false;
+      notifyListeners();
+    } catch (e) {
+      _connecting = false;
+      _error = e.toString();
+      await _teardown();
+      notifyListeners();
+    }
+  }
+
+  /// Bring up a fresh transport + client + facades for [deviceId]. Throws on
+  /// failure (caller decides whether to surface an error or retry). Shared by
+  /// [connect] and the auto-reconnect path.
+  Future<void> _establish(String deviceId, String? name) async {
+    final transport = SmpBleTransport(deviceId, name: name);
+    _transport = transport;
+    _stateSub = transport.stateChanges.listen((s) {
+      _state = s;
+      notifyListeners();
+      if (s == SmpConnectionState.disconnected && !_tearingDown) {
+        // Distinguish a user-requested disconnect from an unexpected drop
+        // (e.g. the device rebooted after `os reset` / a DFU install, or the
+        // link was lost). Only the latter triggers an auto-reconnect.
+        if (_intentionalDisconnect) {
+          unawaited(_teardown());
+        } else {
+          unawaited(_reconnect());
+        }
+      }
+    });
+
+    await transport.connect(); // throws if not an SMP device
+    _client = SmpClient(transport, log: _log);
+    os = OsMgmt(_client!);
+    // Read maxWriteLength dynamically — MTU negotiation settles just after
+    // connect on macOS/iOS, so a value cached here would be the 23-byte default.
+    img = ImgMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
+    fs = FsMgmt(_client!, maxWriteLength: () => _transport?.maxWriteLength);
+    hs = HpiHs(_client!);
+    notifyListeners();
+    // Poll the MTU for a few seconds so the header/chunk size reflect the
+    // negotiated value once the exchange completes.
+    unawaited(_settleMtu());
+    // Probe the ProtoCentral Health Store group; reveal its tab only on a
+    // successful HELLO (non-HPI devices reject the vendor group).
+    unawaited(_probeHealthStore());
+  }
+
+  /// User-requested disconnect — no auto-reconnect.
+  Future<void> disconnect() async {
+    _intentionalDisconnect = true;
+    _reconnecting = false;
+    await _teardown();
+    notifyListeners();
+  }
+
+  /// Auto-reconnect after an unexpected drop. Tears down the dead transport,
+  /// then retries the same device a few times with a short backoff. Cancellable
+  /// by a user disconnect (which sets [_intentionalDisconnect]).
+  Future<void> _reconnect() async {
+    if (_reconnecting) return;
+    final id = _lastDeviceId;
+    await _teardown(); // dispose the dead client/transport (keeps _lastDeviceId)
+    if (id == null || _intentionalDisconnect) return;
+
+    _reconnecting = true;
+    _error = null;
+    notifyListeners();
+
+    for (var attempt = 1; attempt <= _maxReconnectAttempts; attempt++) {
+      if (_intentionalDisconnect) break;
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (_intentionalDisconnect) break;
+      try {
+        await _establish(id, _lastDeviceName);
+        if (_intentionalDisconnect) {
+          await _teardown(); // user disconnected mid-reconnect
+          _reconnecting = false;
+          notifyListeners();
+          return;
+        }
+        _reconnecting = false;
+        notifyListeners();
+        return;
+      } catch (_) {
+        await _teardown(); // clean up the failed attempt before retrying
+      }
+    }
+
+    _reconnecting = false;
+    if (!_intentionalDisconnect) {
+      _error = 'Reconnect failed after $_maxReconnectAttempts attempts';
+    }
+    notifyListeners();
+  }
+
+  /// Manually retry connecting to the last device (e.g. from a UI button).
+  Future<void> reconnect() async {
+    final id = _lastDeviceId;
+    if (id == null || _reconnecting || isConnected) return;
+    _intentionalDisconnect = false;
+    await connect(id, name: _lastDeviceName);
+  }
+
+  /// Probe the HPI_HS group with a HELLO. On success reveal the Health Store
+  /// (a non-HPI SMP device rejects the vendor group, so this stays hidden).
+  Future<void> _probeHealthStore() async {
+    final h = hs;
+    if (h == null) return;
+    try {
+      final hello = await h.hello();
+      if (_transport == null) return; // disconnected meanwhile
+      hsHello = hello;
+      hasHealthStore = true;
+      notifyListeners();
+    } catch (_) {
+      hasHealthStore = false;
+    }
+  }
+
+  /// Re-query the negotiated MTU now (e.g. right before a firmware upload).
+  Future<void> refreshMtu() async {
+    await _transport?.refreshMtu();
+    notifyListeners();
+  }
+
+  /// Poll the MTU for a few seconds after connect. macOS/iOS negotiate the ATT
+  /// MTU just after the connection is up, so the value read during connect is
+  /// often the 23-byte default; this lets the header + chunk size reflect the
+  /// real value once it settles. Stops early once it rises above the default.
+  Future<void> _settleMtu() async {
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (_transport == null) return; // disconnected meanwhile
+      final before = _transport!.maxWriteLength;
+      await _transport!.refreshMtu();
+      final after = _transport!.maxWriteLength;
+      if (after != before) notifyListeners();
+      if ((after ?? 0) > 20) return; // negotiated a real MTU — done
+    }
+  }
+
+  bool _tearingDown = false;
+
+  Future<void> _teardown() async {
+    if (_tearingDown) return;
+    _tearingDown = true;
+    try {
+      await _stateSub?.cancel();
+      _stateSub = null;
+      await _client?.dispose();
+      _client = null;
+      os = null;
+      img = null;
+      fs = null;
+      hs = null;
+      hasHealthStore = false;
+      hsHello = null;
+      final t = _transport;
+      _transport = null;
+      if (t != null) {
+        try {
+          await t.disconnect();
+        } catch (_) {}
+        await t.dispose();
+      }
+      _state = SmpConnectionState.disconnected;
+    } finally {
+      _tearingDown = false;
+    }
+  }
+
+  // --- Console -------------------------------------------------------------
+
+  void _log(SmpMessage message, {required bool outbound}) {
+    console.add(ConsoleEntry(message, outbound: outbound));
+    if (console.length > _maxConsole) console.removeAt(0);
+    notifyListeners();
+  }
+
+  void clearConsole() {
+    console.clear();
+    notifyListeners();
+  }
+
+  // --- Internals -----------------------------------------------------------
+
+  Future<bool> _ensureAdapterOn() async {
+    final state = await UniversalBle.getBluetoothAvailabilityState();
+    if (state == AvailabilityState.poweredOn) return true;
+    try {
+      final s = await UniversalBle.availabilityStream
+          .where((s) =>
+              s == AvailabilityState.poweredOn ||
+              s == AvailabilityState.unsupported ||
+              s == AvailabilityState.unauthorized)
+          .first
+          .timeout(const Duration(seconds: 4));
+      return s == AvailabilityState.poweredOn;
+    } catch (_) {
+      return (await UniversalBle.getBluetoothAvailabilityState()) ==
+          AvailabilityState.poweredOn;
+    }
+  }
+
+  @override
+  void dispose() {
+    _scanSub?.cancel();
+    _teardown();
+    super.dispose();
+  }
+}

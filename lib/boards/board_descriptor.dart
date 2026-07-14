@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'channel_spec.dart';
 import 'matrix_spec.dart';
 import 'packet_spec.dart';

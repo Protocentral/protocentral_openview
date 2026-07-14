@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'dart:typed_data';
 
 /// One palette as a 256-entry RGBA lookup table.

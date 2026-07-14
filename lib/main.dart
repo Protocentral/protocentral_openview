@@ -1,3 +1,7 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +9,8 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'controllers/connection_controller.dart';
+import 'controllers/developer_ble_controller.dart';
+import 'controllers/smp_controller.dart';
 import 'controllers/recording_controller.dart';
 import 'controllers/recordings_browser_controller.dart';
 import 'controllers/scan_controller.dart';
@@ -16,22 +22,40 @@ import 'transport/wifi_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('[OV] main: binding ready');
 
   // Build the full controller graph here so the close handler can reach
   // them directly. OpenViewApp registers them as Provider.value.
+  //
+  // IMPORTANT (iOS launch): do not await platform plugins indefinitely before
+  // runApp. path_provider / BLE channels can race plugin registration on
+  // cold start (especially physical iOS 26 + Flutter 3.38+), which presents as
+  // "Installing and launching…" hanging forever.
   final settings = SettingsController();
-  await settings.load();
+  try {
+    await settings.load().timeout(const Duration(seconds: 4));
+    debugPrint('[OV] main: settings loaded');
+  } catch (e) {
+    debugPrint('[OV] main: settings.load skipped/failed: $e');
+  }
 
+  final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+
+  // USB is desktop-only. Instantiating UsbSerialService on mobile is fine
+  // (scan returns empty; no serialport FFI until scan/connect), but we still
+  // construct it so the same graph works on every platform.
   final usb = UsbSerialService();
   final ble = BleService();
   final wifi = WifiService();
   final connection = ConnectionController(usb: usb, ble: ble, wifi: wifi);
   final scan = ScanController(usb: usb, ble: ble);
+  final developerBle = DeveloperBleController();
+  final smp = SmpController();
   final recording =
       RecordingController(connection: connection, settings: settings);
   final recordingsBrowser = RecordingsBrowserController(settings: settings);
+  debugPrint('[OV] main: controllers ready');
 
-  final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
   if (isDesktop) {
     await windowManager.ensureInitialized();
     const opts = WindowOptions(
@@ -53,10 +77,14 @@ Future<void> main() async {
       ble: ble,
       wifi: wifi,
       recording: recording,
+      developerBle: developerBle,
+      smp: smp,
     );
     windowManager.addListener(closer);
+    debugPrint('[OV] main: desktop window ready');
   }
 
+  debugPrint('[OV] main: runApp');
   runApp(OpenViewApp(
     usb: usb,
     ble: ble,
@@ -66,6 +94,8 @@ Future<void> main() async {
     scan: scan,
     recording: recording,
     recordingsBrowser: recordingsBrowser,
+    developerBle: developerBle,
+    smp: smp,
   ));
 }
 
@@ -74,11 +104,15 @@ class _CloseHandler with WindowListener {
   final BleService ble;
   final WifiService wifi;
   final RecordingController recording;
+  final DeveloperBleController developerBle;
+  final SmpController smp;
   _CloseHandler({
     required this.usb,
     required this.ble,
     required this.wifi,
     required this.recording,
+    required this.developerBle,
+    required this.smp,
   });
 
   bool _shuttingDown = false;
@@ -108,6 +142,12 @@ class _CloseHandler with WindowListener {
     } catch (_) {}
     try {
       await wifi.disconnect();
+    } catch (_) {}
+    try {
+      await developerBle.disconnect();
+    } catch (_) {}
+    try {
+      await smp.disconnect();
     } catch (_) {}
 
     // 3. Skip the Flutter engine teardown.

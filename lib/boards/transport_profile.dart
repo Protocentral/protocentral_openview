@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 /// Bitmask of supported transports for a board.
 class TransportSupport {
   final bool ble;

@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -41,14 +44,14 @@ class ConnectionController extends ChangeNotifier {
   BoardDescriptor? _descriptor;
 
   /// BLE decodes via the transport's tagged [BleService.frames] stream (each
-  /// notification carries its own framing/packet-type), so the raw byte-stream
-  /// framer is driven from there instead of [TransportService.bytes].
+  /// notification carries per-characteristic framing/packet-type). USB/Wi-Fi
+  /// keep the byte-stream framer path.
   bool _decodeViaBleFrames = false;
   PacketFramer? _framer;
   PacketRouter? _router;
   StreamSubscription<dynamic>? _bytesSub;
-  StreamSubscription<dynamic>? _eventsSub;
   StreamSubscription<BleFrame>? _bleFramesSub;
+  StreamSubscription<dynamic>? _eventsSub;
 
   TransportStatus _status = TransportStatus.idle;
   TransportStatus get status => _status;

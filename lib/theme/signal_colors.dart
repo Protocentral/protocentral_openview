@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'package:flutter/material.dart';
 
 /// Plot-specific colors that don't belong in the M3 palette.

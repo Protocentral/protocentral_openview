@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'dart:typed_data';
 
 import '../../protocol/decoded_packet.dart';
@@ -21,30 +24,30 @@ import 'shared_codecs.dart';
 /// the 'bioZSkip' event flag (1 = invalid) before plotting or processing the
 /// 'bioz' channel for this sample.
 DecodedPacket decodeHealthypiPkt2(Uint8List p) {
-  final ecgSample  = Codec.readInt32LE(p, 0).toDouble();
+  final ecgSample = Codec.readInt32LE(p, 0).toDouble();
   final biozSample = Codec.readInt32LE(p, 4).toDouble();
-  final bioZSkip   = p[8] != 0;               // true → firmware says skip this BioZ sample
-  final rawRed     = Codec.readInt32LE(p, 9).toDouble();
-  final rawIr      = Codec.readInt32LE(p, 13).toDouble();
-  final temp       = Codec.readInt16LE(p, 17).toDouble() / 100.0;
-  final spo2       = p[19];
-  final hr         = p[20];
-  final rr         = p[21];
+  final bioZSkip = p[8] != 0; // true → firmware says skip this BioZ sample
+  final rawRed = Codec.readInt32LE(p, 9).toDouble();
+  final rawIr = Codec.readInt32LE(p, 13).toDouble();
+  final temp = Codec.readInt16LE(p, 17).toDouble() / 100.0;
+  final spo2 = p[19];
+  final hr = p[20];
+  final rr = p[21];
 
   return DecodedPacket(
     pktType: 2,
     channelSamples: {
-      'ecg':    [ecgSample],
-      'bioz':   [biozSample],   // check events['bioZSkip'] before using
+      'ecg': [ecgSample],
+      'bioz': [biozSample], // check events['bioZSkip'] before using
       'ppgRed': [rawRed],
-      'ppgIr':  [rawIr],
+      'ppgIr': [rawIr],
     },
     events: {
-      'heartRate':   hr,
-      'respRate':    rr,
-      'spo2':        spo2,
+      'heartRate': hr,
+      'respRate': rr,
+      'spo2': spo2,
       'temperature': temp,
-      'bioZSkip':    bioZSkip ? 1 : 0,
+      'bioZSkip': bioZSkip ? 1 : 0,
     },
   );
 }
@@ -85,7 +88,7 @@ DecodedPacket decodeHealthypiPkt3(Uint8List p) {
   return DecodedPacket(
     pktType: 3,
     channelSamples: {
-      'ecg':  ecg,
+      'ecg': ecg,
       'bioz': resp,
     },
     events: events,
@@ -144,7 +147,9 @@ const int hpiBlePktRespRate = 0x17; // HRV_CHAR   — resp rate in byte[0]
 DecodedPacket decodeHealthypiBleEcg(Uint8List p) {
   final n = p.length ~/ 4;
   if (n == 0) return DecodedPacket(pktType: hpiBlePktEcg);
-  final ecg = <double>[for (var i = 0; i < n; i++) Codec.readInt32LE(p, i * 4).toDouble()];
+  final ecg = <double>[
+    for (var i = 0; i < n; i++) Codec.readInt32LE(p, i * 4).toDouble(),
+  ];
   return DecodedPacket(pktType: hpiBlePktEcg, channelSamples: {'ecg': ecg});
 }
 
@@ -152,7 +157,9 @@ DecodedPacket decodeHealthypiBleEcg(Uint8List p) {
 DecodedPacket decodeHealthypiBleResp(Uint8List p) {
   final n = p.length ~/ 4;
   if (n == 0) return DecodedPacket(pktType: hpiBlePktResp);
-  final resp = <double>[for (var i = 0; i < n; i++) Codec.readInt32LE(p, i * 4).toDouble()];
+  final resp = <double>[
+    for (var i = 0; i < n; i++) Codec.readInt32LE(p, i * 4).toDouble(),
+  ];
   return DecodedPacket(pktType: hpiBlePktResp, channelSamples: {'bioz': resp});
 }
 
@@ -160,7 +167,9 @@ DecodedPacket decodeHealthypiBleResp(Uint8List p) {
 DecodedPacket decodeHealthypiBlePpg(Uint8List p) {
   final n = p.length ~/ 2;
   if (n == 0) return DecodedPacket(pktType: hpiBlePktPpg);
-  final ppg = <double>[for (var i = 0; i < n; i++) Codec.readInt16LE(p, i * 2).toDouble()];
+  final ppg = <double>[
+    for (var i = 0; i < n; i++) Codec.readInt16LE(p, i * 2).toDouble(),
+  ];
   return DecodedPacket(pktType: hpiBlePktPpg, channelSamples: {'ppgRed': ppg});
 }
 
@@ -190,5 +199,8 @@ DecodedPacket decodeHealthypiBleTemp(Uint8List p) {
 /// Respiration-rate characteristic (HRV char): resp rate (breaths/min) in [0].
 DecodedPacket decodeHealthypiBleRespRate(Uint8List p) {
   if (p.isEmpty) return DecodedPacket(pktType: hpiBlePktRespRate);
-  return DecodedPacket(pktType: hpiBlePktRespRate, events: {'respRate': p[0]});
+  return DecodedPacket(
+    pktType: hpiBlePktRespRate,
+    events: {'respRate': p[0]},
+  );
 }

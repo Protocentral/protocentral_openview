@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:OpenView/boards/board_registry.dart';

@@ -1,3 +1,6 @@
+// Copyright (c) 2024-2026 protocentral
+// SPDX-License-Identifier: MIT
+
 import 'board_descriptor.dart';
 import 'descriptors/ads1292r.dart';
 import 'descriptors/ads1293.dart';
@@ -48,13 +51,13 @@ class BoardRegistry {
       all.where((b) => b.transports.ble);
 
   /// Find the BLE-capable descriptor for an advertised service UUID / device
-  /// name. BLE is currently Sensything-only, so this only ever resolves to the
-  /// Sensything descriptors. Returns null if no match.
+  /// name (Sensything OX/CAP, HealthyPi 5, …). Returns null if no match.
   ///
   /// Advertised-name matching is tried **first**: Sensything OX and CAP share
   /// the same OpenView service UUID, so the name (`Sensything-OX` vs
-  /// `Sensything-CAP`) is the only reliable discriminator. Service-UUID
-  /// matching is the fallback for devices whose name we can't read.
+  /// `Sensything-CAP`) is the only reliable discriminator; HealthyPi 5 is
+  /// matched by name (`healthypi` / `HealthyPi`) or its ECG service UUID.
+  /// Service-UUID matching is the fallback for devices whose name we can't read.
   static BoardDescriptor? matchBle({
     List<String>? serviceUuids,
     String? advertisedName,
