@@ -1,7 +1,7 @@
 # OpenView 3 — SMP / MCUmgr Device Management Integration (Handoff)
 
-**Audience:** a developer working **inside the
-OpenView 3 repo**. This document is self-contained — it captures
+**Audience:** a developer working **inside the OpenView 3 repo**. This
+document is self-contained — it captures
 every decision, the source code to port, the OpenView 3 architecture, the
 platform gotchas discovered during a prior investigation, and a phased plan.
 

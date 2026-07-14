@@ -13,7 +13,9 @@ OpenView 3 is a companion application to receive data from various ProtoCentral 
 
 </div>
 
-OpenView 3 is the Flutter rewrite of the original [OpenView app](https://github.com/Protocentral/protocentral_openview2) and is the primary supported app for all ProtoCentral boards. Built on the [Flutter framework](https://flutter.dev/), it runs on Windows, macOS, Linux, Android, and iOS.
+OpenView 3 is the current, primary supported app for all ProtoCentral boards. Built on the [Flutter framework](https://flutter.dev/), it runs on Windows, macOS, Linux, Android, and iOS.
+
+This repository is the canonical home of OpenView across versions. Earlier releases remain available: OpenView 2 lives on the [`v2` branch](https://github.com/Protocentral/protocentral_openview/tree/v2) (and its releases are tagged `2.x`), and the original Processing-based OpenView 1 is archived at [protocentral_openview_processing](https://github.com/Protocentral/protocentral_openview_processing).
 
 OpenView 3 connects over three transports:
 
@@ -39,13 +41,13 @@ OpenView 3 connects over three transports:
 
 ## Installing and using ProtoCentral OpenView 3
 
-You can download the latest version for your operating system from the [Releases](https://github.com/Protocentral/Protocentral_openview2/releases) page.
+You can download the latest version for your operating system from the [Releases](https://github.com/Protocentral/protocentral_openview/releases) page.
 
 OpenView 3 is written in [Flutter](https://flutter.dev/) and is fully open source. You can compile your own from the source code provided in this GitHub repository.
 
 ### Using on Desktop Platforms:
 
-1. Download the zip file from the [Releases](https://github.com/Protocentral/protocentral_openview2/releases) page.
+1. Download the zip file from the [Releases](https://github.com/Protocentral/protocentral_openview/releases) page.
 2. Extract the zip file installed
 3. Open the app in the folder extracted and run the application
 
