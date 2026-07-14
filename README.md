@@ -128,68 +128,52 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full data path
 
 ## Wire format
 
-Any device that can push bytes over UART/USB/BLE can talk to OpenView. The frame is:
+Any device that can push bytes over UART/USB/BLE can talk to OpenView. Every board uses
+the same frame; only the payload differs per packet type.
 
-| Position | Value |
-|---|---|
-| 0 | `0x0A` (start) |
-| 1 | `0xFA` (type indicator) |
-| 2 | Payload length LSB |
-| 3 | Payload length MSB |
-| 4 | Packet type |
-| 5 … n | Payload |
-| last | `0x0B` (stop) |
+![OpenView packet format](docs/images/packet-format.svg)
+
+> **All multi-byte fields are little-endian.** Unknown packet types are surfaced rather
+> than dropped — the Console screen hex-dumps them, which is the fastest way to bring up
+> new firmware.
 
 <details>
-<summary><b>HealthyPi 5 packet layouts</b> (firmware ≥ 1.0.0 sends ECG/BioZ and PPG as separate packets)</summary>
+<summary><b>Legacy packet <code>0x02</code></b> — HealthyPi 5 firmware &lt; 1.0.0 (single combined sample)</summary>
 
-```mermaid
-  packet-beta
-  title OpenView ECG & BioZ packet
-   0-7: "0x0A (START)"
-   8-15: "0xFA (Type Indicator)"
-   16-23: "Payload Length LSB"
-   24-31: "Payload Length MSB"
-   32-39: "0x03 (Type - Data)"
-   40-71: "ECG (32-bit MSB to LSB)"
-   72-103: "ECG (32-bit MSB to LSB)"
-   104-135: "ECG (32-bit MSB to LSB)"
-   136-167: "ECG (32-bit MSB to LSB)"
-   168-199: "ECG (32-bit MSB to LSB)"
-   200-231: "ECG (32-bit MSB to LSB)"
-   232-263: "ECG (32-bit MSB to LSB)"
-   264-295: "ECG (32-bit MSB to LSB)"
-   296-327: "Resp (32-bit MSB to LSB )"
-   328-359: "Resp (32-bit MSB to LSB )"
-   360-391: "Resp (32-bit MSB to LSB )"
-   392-423: "Resp (32-bit MSB to LSB )"
-   424-431: "Heart Rate"
-   432-439: "Resp Rate"
-   440-447: "0x00"
-   448-455: "0x0B (STOP)"
-```
+Before firmware 1.0.0, HealthyPi 5 sent one sample of every signal in a single 22-byte
+payload instead of the batched `0x03` / `0x04` packets. Still decoded for compatibility
+(`decodeHealthypiPkt2`):
 
-```mermaid
-  packet-beta
-  title OpenView PPG packet
-    0-7: "0x0A (START)"
-    8-15: "0xFA (Type Indicator)"
-    16-23: "Payload Length LSB"
-    24-31: "Payload Length MSB"
-    32-39: "0x04 (Type - Data)"
-    40-55: "PPG - Red (16-bit MSB to LSB)"
-    56-71: "PPG - Red (16-bit MSB to LSB)"
-    72-87: "PPG - Red (16-bit MSB to LSB)"
-    88-103: "PPG - Red (16-bit MSB to LSB)"
-    104-119: "PPG - Red (16-bit MSB to LSB)"
-    120-135: "PPG - Red (16-bit MSB to LSB)"
-    136-151: "PPG - Red (16-bit MSB to LSB)"
-    152-167: "PPG - Red (16-bit MSB to LSB)"
-    168-183: "Temperature (16-bit)"
-    184-191: "SpO2"
-    192-199: "0x00"
-    200-207: "0x0B (STOP)"
-```
+| Offset | Field | Type |
+|---|---|---|
+| `0–3` | ECG | int32 LE (sign-extended 24-bit ADC) |
+| `4–7` | BioZ / respiration | int32 LE |
+| `8` | BioZ skip flag | uint8 — `1` = discard this BioZ sample |
+| `9–12` | PPG red | int32 LE |
+| `13–16` | PPG IR | int32 LE |
+| `17–18` | Temperature | int16 LE (°C × 100) |
+| `19` | SpO₂ | uint8 (%) |
+| `20` | Heart rate | uint8 (bpm) |
+| `21` | Respiration rate | uint8 (breaths/min) |
+
+</details>
+
+<details>
+<summary><b>HealthyPi 5 over BLE</b> — one characteristic per signal</summary>
+
+Over BLE the board does not batch signals: each GATT characteristic streams a single
+signal, so OpenView routes each characteristic to its own synthetic packet type. Values
+are little-endian, matching the USB stream.
+
+| Signal | Characteristic | Payload |
+|---|---|---|
+| ECG | `ECG_CHAR` | N × int32 LE |
+| Respiration | `RESP_CHAR` | N × int32 LE |
+| PPG | `HIST_CHAR` | N × int16 LE |
+| Heart rate | `2a37` | uint8 |
+| SpO₂ | `2a5e` | uint8 |
+| Temperature | `2a6e` | int16 LE (× 0.01) |
+| Respiration rate | `HRV_CHAR` | uint8 |
 
 </details>
 

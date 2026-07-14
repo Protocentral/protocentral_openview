@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" role="img" aria-label="ProtoCentral wire format: frame envelope and HealthyPi 5 packet payloads">
+  <defs>
+    <style>
+      .bg    { fill: #0E1620; }
+      .card  { fill: #16212D; }
+      .t     { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .mono  { font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace; }
+      .h1    { font-size: 21px; font-weight: 700; fill: #E6EDF3; }
+      .h2    { font-size: 15px; font-weight: 600; fill: #E6EDF3; }
+      .sub   { font-size: 12.5px; fill: #8FA3B5; }
+      .off   { font-size: 11px; fill: #6F8496; }
+      .cell  { font-size: 13px; font-weight: 600; fill: #0E1620; }
+      .cellL { font-size: 13px; font-weight: 600; fill: #E6EDF3; }
+      .note  { font-size: 12.5px; fill: #8FA3B5; }
+      .meta  { fill: #2E4052; stroke: #3E5568; }
+      .pay   { fill: none; stroke: #5D7186; stroke-dasharray: 6 4; }
+      .ecg   { fill: #E8833A; }
+      .resp  { fill: #5BB8E8; }
+      .ppg   { fill: #4CC38A; }
+      .aux   { fill: #94A9BC; }
+      .rule  { stroke: #24323F; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1200" height="660" rx="10"/>
+
+  <text class="t h1" x="40" y="42">ProtoCentral wire format</text>
+  <text class="t sub" x="40" y="63">Every board frames its data the same way. All multi-byte fields are little-endian.</text>
+
+  <!-- ───────── Frame envelope ───────── -->
+  <text class="t h2" x="40" y="106">Frame</text>
+
+  <g>
+    <!-- byte offsets -->
+    <text class="mono off" x="40"  y="128">0</text>
+    <text class="mono off" x="158" y="128">1</text>
+    <text class="mono off" x="276" y="128">2</text>
+    <text class="mono off" x="410" y="128">3</text>
+    <text class="mono off" x="544" y="128">4</text>
+    <text class="mono off" x="670" y="128">5 … 4+LEN</text>
+    <text class="mono off" x="1050" y="128">last</text>
+
+    <rect class="meta" x="40"  y="136" width="110" height="52" rx="6"/>
+    <text class="mono cellL" x="95"  y="167" text-anchor="middle">0x0A</text>
+
+    <rect class="meta" x="158" y="136" width="110" height="52" rx="6"/>
+    <text class="mono cellL" x="213" y="167" text-anchor="middle">0xFA</text>
+
+    <rect class="meta" x="276" y="136" width="126" height="52" rx="6"/>
+    <text class="t cellL" x="339" y="167" text-anchor="middle">LEN lsb</text>
+
+    <rect class="meta" x="410" y="136" width="126" height="52" rx="6"/>
+    <text class="t cellL" x="473" y="167" text-anchor="middle">LEN msb</text>
+
+    <rect class="meta" x="544" y="136" width="118" height="52" rx="6"/>
+    <text class="t cellL" x="603" y="167" text-anchor="middle">TYPE</text>
+
+    <rect class="pay"  x="670" y="136" width="372" height="52" rx="6"/>
+    <text class="t cellL" x="856" y="167" text-anchor="middle">PAYLOAD · LEN bytes</text>
+
+    <rect class="meta" x="1050" y="136" width="110" height="52" rx="6"/>
+    <text class="mono cellL" x="1105" y="167" text-anchor="middle">0x0B</text>
+
+    <text class="t note" x="40" y="212">START · TYPE-INDICATOR · length (uint16 LE) · packet type · payload · STOP.
+      The framer also tolerates an optional 0x00 pad byte before 0x0B.</text>
+  </g>
+
+  <line class="rule" x1="40" y1="238" x2="1160" y2="238"/>
+
+  <!-- ───────── Packet 0x03 ───────── -->
+  <text class="t h2" x="40" y="272">TYPE 0x03 — ECG + Respiration</text>
+  <text class="t sub" x="40" y="292">HealthyPi 5, firmware ≥ 1.0.0 · 50-byte payload</text>
+
+  <g>
+    <text class="mono off" x="40"  y="322">[0 – 31]</text>
+    <text class="mono off" x="616" y="322">[32 – 47]</text>
+    <text class="mono off" x="976" y="322">[48]</text>
+    <text class="mono off" x="1068" y="322">[49]</text>
+
+    <rect class="ecg"  x="40"  y="330" width="560" height="46" rx="6"/>
+    <text class="t cell" x="320" y="359" text-anchor="middle">8 × ECG · int32 LE</text>
+
+    <rect class="resp" x="616" y="330" width="344" height="46" rx="6"/>
+    <text class="t cell" x="788" y="359" text-anchor="middle">4 × BioZ / Resp · int32 LE</text>
+
+    <rect class="aux"  x="976" y="330" width="76" height="46" rx="6"/>
+    <text class="t cell" x="1014" y="359" text-anchor="middle">HR</text>
+
+    <rect class="aux"  x="1068" y="330" width="92" height="46" rx="6"/>
+    <text class="t cell" x="1114" y="359" text-anchor="middle">RR</text>
+
+    <text class="t note" x="40" y="398">ECG streams at 125 Hz, BioZ/respiration at ~62 Hz. HR (bpm) and RR (breaths/min) are uint8.</text>
+  </g>
+
+  <line class="rule" x1="40" y1="424" x2="1160" y2="424"/>
+
+  <!-- ───────── Packet 0x04 ───────── -->
+  <text class="t h2" x="40" y="458">TYPE 0x04 — PPG</text>
+  <text class="t sub" x="40" y="478">HealthyPi 5, firmware ≥ 1.0.0 · 19-byte payload</text>
+
+  <g>
+    <text class="mono off" x="40"  y="508">[0 – 15]</text>
+    <text class="mono off" x="756" y="508">[16 – 17]</text>
+    <text class="mono off" x="1000" y="508">[18]</text>
+
+    <rect class="ppg" x="40"  y="516" width="700" height="46" rx="6"/>
+    <text class="t cell" x="390" y="545" text-anchor="middle">8 × PPG Red · int16 LE</text>
+
+    <rect class="aux" x="756" y="516" width="228" height="46" rx="6"/>
+    <text class="t cell" x="870" y="545" text-anchor="middle">Temperature · int16 LE</text>
+
+    <rect class="aux" x="1000" y="516" width="160" height="46" rx="6"/>
+    <text class="t cell" x="1080" y="545" text-anchor="middle">SpO₂</text>
+
+    <text class="t note" x="40" y="584">PPG Red streams at 100 Hz. Temperature is °C × 100 (3650 → 36.50 °C); SpO₂ is uint8 percent.</text>
+  </g>
+
+  <text class="t note" x="40" y="628">Unknown packet types are surfaced rather than dropped — the Console screen hex-dumps them.</text>
+</svg>
