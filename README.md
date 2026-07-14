@@ -10,7 +10,9 @@ Stream live data over USB, BLE or Wi-Fi · visualize it in real time · record i
 [![Release builds](https://github.com/Protocentral/protocentral_openview/actions/workflows/release.yml/badge.svg)](https://github.com/Protocentral/protocentral_openview/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 
-[**Download**](https://github.com/Protocentral/protocentral_openview/releases) · [Supported boards](#supported-boards) · [Build from source](#build-from-source) · [Add your own board](#add-your-own-board)
+[![Download on the App Store](docs/images/appstore.png)](https://apps.apple.com/app/id1667747246) [![Get it on Google Play](docs/images/play_store.png)](https://play.google.com/store/apps/details?id=com.protocentral.openview)
+
+[**Desktop download**](https://github.com/Protocentral/protocentral_openview/releases) · [Supported boards](#supported-boards) · [Build from source](#build-from-source) · [Add your own board](#add-your-own-board)
 
 ![OpenView live view](docs/images/openview-live-desktop.png)
 
@@ -66,15 +68,27 @@ Don't see your board? It takes three files and no changes to the app — see
 ### Desktop
 
 Download the zip for your OS from the [Releases](https://github.com/Protocentral/protocentral_openview/releases)
-page, extract it, and run the app.
+page, extract it, and run the app. Verify the download against `SHA256SUMS.txt`
+if you like.
+
+The macOS build is ad-hoc signed, not notarized, so the first launch is blocked
+with *"Apple cannot check it for malicious software"*. Right-click the app and
+choose **Open**, or clear the quarantine flag:
+
+```sh
+xattr -dr com.apple.quarantine OpenView.app
+```
 
 ### Mobile
 
 <div align="center">
 
-[![Google Play](docs/images/play_store.png)](https://play.google.com/store/apps/details?id=com.protocentral.openview) [![App Store](docs/images/appstore.png)](https://apps.apple.com/fi/app/openview/id1667747246)
+[![Download on the App Store](docs/images/appstore.png)](https://apps.apple.com/app/id1667747246) [![Get it on Google Play](docs/images/play_store.png)](https://play.google.com/store/apps/details?id=com.protocentral.openview)
 
 </div>
+
+The App Store listing covers iPhone, iPad **and Apple Silicon Macs** — on an M-series
+Mac you can install it straight from the Mac App Store instead of the zip above.
 
 > **Note** — USB is not available on mobile. Use BLE or Wi-Fi.
 

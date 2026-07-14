@@ -124,6 +124,13 @@ jobs:
           flutter pub get
 
       - name: Build Windows release
+        env:
+          # MSVC 14.51 (VS 18, on windows-latest) makes <experimental/coroutine>
+          # a hard error — STL1011 — and permission_handler_windows still
+          # includes it. cl.exe picks up extra flags from the CL env var, so we
+          # can silence it here instead of patching the plugin. Remove once
+          # permission_handler_windows moves to <coroutine>.
+          CL: /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
         run: flutter build windows --release
 
       - name: Package
