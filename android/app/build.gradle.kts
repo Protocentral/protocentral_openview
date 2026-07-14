@@ -45,6 +45,12 @@ android {
         versionName = flutter.versionName
     }
 
+    // An undefined GitHub Actions secret is exported as an *empty string*, not as
+    // an absent variable — so these must test for blank, not for null, or CI
+    // writes a zero-byte keystore and the packaging task dies.
+    val ciKeystoreBase64 = System.getenv("KEYSTORE_BASE64").orEmpty()
+    val hasCiKeystore = ciKeystoreBase64.isNotBlank()
+
     signingConfigs {
         create("release") {
             if (keystorePropertiesFile.exists()) {
@@ -53,11 +59,10 @@ android {
                 keyPassword = keystoreProperties.getProperty("keyPassword")
                 keystoreProperties.getProperty("storeFile")?.let { storeFile = file(it) }
                 storePassword = keystoreProperties.getProperty("storePassword")
-            } else if (System.getenv("KEYSTORE_BASE64") != null) {
+            } else if (hasCiKeystore) {
                 // Decode base64 keystore provided via environment (CI secret)
-                val keystoreBytes = Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
                 val keystoreOut = rootProject.file("ci_keystore.jks")
-                keystoreOut.writeBytes(keystoreBytes)
+                keystoreOut.writeBytes(Base64.getDecoder().decode(ciKeystoreBase64))
                 storeFile = keystoreOut
                 keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")
@@ -76,7 +81,7 @@ android {
             isMinifyEnabled = false      // Note the 'is' prefix
             isShrinkResources = false    // Note the 'is' prefix
 
-            if (keystorePropertiesFile.exists() || System.getenv("KEYSTORE_BASE64") != null) {
+            if (keystorePropertiesFile.exists() || hasCiKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
                 signingConfig = signingConfigs.getByName("debug")

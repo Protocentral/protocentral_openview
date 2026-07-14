@@ -1,4 +1,7 @@
 # Continuous integration — fast feedback on every push/PR.
+#
+# CI deliberately tracks the latest Flutter stable so upstream breakage shows up
+# here first. Release builds pin an exact version (see release.yml).
 name: CI
 
 on:
@@ -6,6 +9,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

@@ -1,15 +1,22 @@
 # Build OpenView release binaries for desktop + Android APK.
 #
 # Triggers:
-#   - Git tags matching v* (e.g. v3.0.0) → create/update a GitHub Release
+#   - Git tags matching v* (e.g. v3.0.0) → create a GitHub Release
 #   - workflow_dispatch → manual build; upload workflow artifacts only
 #
 # Artifacts:
 #   OpenView-linux-x64.zip
 #   OpenView-windows-x64.zip
-#   OpenView-macos.zip          (native arch of macos-latest, currently arm64)
-#   OpenView-android.apk        (release APK; signed with debug keys unless
-#                                KEYSTORE_* secrets are configured)
+#   OpenView-macos-arm64.zip    (Developer ID signed + notarized when the
+#                                AC_CERTIFICATE / APPLE_* secrets are present)
+#   OpenView-android.apk        (release-signed when the KEYSTORE_* secrets are
+#                                present; tag builds FAIL without them)
+#   SHA256SUMS.txt
+#
+# Required secrets for a fully signed release:
+#   macOS   AC_CERTIFICATE, AC_CERTIFICATE_PASSWORD, KEYCHAIN_PASSWORD,
+#           APPLE_ID, APPLE_PASSWORD (app-specific pw), APPLE_TEAM_ID
+#   Android KEYSTORE_BASE64, KEY_ALIAS, KEY_PASSWORD, STORE_PASSWORD
 name: Release builds
 
 on:
@@ -26,14 +33,37 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Keep in sync with a known-good stable if builds break on latest.
-  # Empty = latest stable from the action.
-  FLUTTER_CHANNEL: stable
+  # Releases pin an exact Flutter version so a rebuild of a tag is reproducible
+  # and a bad upstream stable can never silently break a release.
+  FLUTTER_VERSION: 3.44.6
 
 jobs:
+  # ── Guard: tag must match the pubspec version ──────────────────────────
+  # Cheap job that fails in ~10s rather than after four platform builds.
+  version:
+    name: Check version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Tag matches pubspec version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"                       # v3.0.0 → 3.0.0
+          pubspec=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}')
+          echo "tag=$tag pubspec=$pubspec"
+          if [ "$tag" != "${pubspec%%+*}" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match pubspec version $pubspec." \
+                 "Bump pubspec.yaml or retag."
+            exit 1
+          fi
+
   # ── Linux desktop ──────────────────────────────────────────────────────
   linux:
     name: Linux x64
+    needs: version
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -43,7 +73,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
           cache: true
 
       - name: Install system packages
@@ -77,6 +108,7 @@ jobs:
   # ── Windows desktop ────────────────────────────────────────────────────
   windows:
     name: Windows x64
+    needs: version
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
@@ -86,7 +118,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
           cache: true
 
       - name: Flutter config & deps
@@ -111,8 +144,14 @@ jobs:
           if-no-files-found: error
 
   # ── macOS desktop ──────────────────────────────────────────────────────
+  # The Xcode project uses Automatic signing with a DEVELOPMENT_TEAM, so a plain
+  # `flutter build macos` on a runner fails ("No signing certificate 'Mac
+  # Development' found"). We therefore configure with Flutter and build with
+  # xcodebuild, overriding the signing settings on the command line (command-line
+  # settings outrank the ones baked into project.pbxproj).
   macos:
-    name: macOS
+    name: macOS arm64
+    needs: version
     runs-on: macos-latest
     timeout-minutes: 90
     steps:
@@ -122,11 +161,49 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
           cache: true
 
       - name: Install build tools (libserialport)
         run: brew install automake libtool
+
+      - name: Import Developer ID certificate
+        id: cert
+        env:
+          AC_CERTIFICATE: ${{ secrets.AC_CERTIFICATE }}
+          AC_CERTIFICATE_PASSWORD: ${{ secrets.AC_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          if [ -z "$AC_CERTIFICATE" ]; then
+            echo "::warning::AC_CERTIFICATE not set — building ad-hoc signed (Gatekeeper will warn users)."
+            echo "identity=-" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          keychain="$RUNNER_TEMP/build.keychain-db"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+
+          echo "$AC_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+            -P "$AC_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$keychain" >/dev/null
+          # Put our keychain first in the search list so xcodebuild finds the key.
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          security find-identity -v -p codesigning "$keychain"
+          identity=$(security find-identity -v -p codesigning "$keychain" \
+            | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)"/\1/')
+          if [ -z "$identity" ]; then
+            echo "::warning::No 'Developer ID Application' identity in AC_CERTIFICATE —" \
+                 "falling back to ad-hoc signing (no notarization)."
+            identity='-'
+          fi
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
 
       - name: Flutter config & deps
         run: |
@@ -134,35 +211,73 @@ jobs:
           flutter pub get
 
       - name: Build macOS release
-        run: flutter build macos --release
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IDENTITY: ${{ steps.cert.outputs.identity }}
+        run: |
+          # Generate the ephemeral xcconfig / plugin registrant without building.
+          flutter build macos --release --config-only
+
+          args=(
+            -workspace macos/Runner.xcworkspace
+            -scheme Runner
+            -configuration Release
+            -derivedDataPath "$RUNNER_TEMP/dd"
+            CODE_SIGN_STYLE=Manual
+            PROVISIONING_PROFILE_SPECIFIER=
+          )
+          if [ "$IDENTITY" = "-" ]; then
+            args+=(CODE_SIGN_IDENTITY=-)     # ad-hoc: runs locally, Gatekeeper warns
+          else
+            args+=(
+              CODE_SIGN_IDENTITY="$IDENTITY"
+              DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+              ENABLE_HARDENED_RUNTIME=YES     # required for notarization
+              OTHER_CODE_SIGN_FLAGS=--timestamp
+            )
+          fi
+          xcodebuild "${args[@]}" build
+
+      - name: Notarize & staple
+        if: steps.cert.outputs.identity != '-'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          app="$RUNNER_TEMP/dd/Build/Products/Release/OpenView.app"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$app"
+          spctl --assess --type execute --verbose "$app"
 
       - name: Package
         run: |
-          # PRODUCT_NAME is OpenView → OpenView.app
-          APP=$(find build/macos -name 'OpenView.app' -type d | head -1)
-          if [ -z "$APP" ]; then
-            echo "OpenView.app not found under build/macos"
-            find build/macos -maxdepth 5 -type d -name '*.app' || true
+          app="$RUNNER_TEMP/dd/Build/Products/Release/OpenView.app"
+          if [ ! -d "$app" ]; then
+            echo "::error::OpenView.app not found at $app"
+            find "$RUNNER_TEMP/dd/Build/Products" -maxdepth 3 -name '*.app' || true
             exit 1
           fi
-          echo "Packaging $APP"
-          # ditto preserves macOS app bundle metadata better than zip alone
-          ditto -c -k --sequesterRsrc --keepParent "$APP" OpenView-macos.zip
-          # Record runner arch for the release notes / asset name clarity
-          uname -m | tee macos-arch.txt
+          # ditto (not zip) preserves app-bundle metadata and the stapled ticket.
+          ditto -c -k --sequesterRsrc --keepParent "$app" OpenView-macos-arm64.zip
+          codesign --verify --deep --strict --verbose=2 "$app" || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenView-macos
-          path: |
-            OpenView-macos.zip
-            macos-arch.txt
+          name: OpenView-macos-arm64
+          path: OpenView-macos-arm64.zip
           if-no-files-found: error
 
   # ── Android APK ────────────────────────────────────────────────────────
   android:
     name: Android APK
+    needs: version
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -174,31 +289,55 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
           cache: true
 
       - name: Flutter deps
         run: flutter pub get
 
-      # Optional release signing via repository secrets:
-      #   KEYSTORE_BASE64, KEY_ALIAS, KEY_PASSWORD, STORE_PASSWORD
-      # Without secrets, the app is signed with the debug keystore
-      # (see android/app/build.gradle.kts).
-      - name: Build APK
+      # Writes android/key.properties, which build.gradle.kts picks up. A tag
+      # build without a keystore is a hard error — shipping a debug-signed APK on
+      # a public release is worse than shipping no APK (it can never be upgraded
+      # in place by a properly signed build).
+      - name: Prepare release signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              echo "::error::KEYSTORE_BASE64 is not set. A tagged release must ship a" \
+                   "release-signed APK. Add KEYSTORE_BASE64, KEY_ALIAS, KEY_PASSWORD and" \
+                   "STORE_PASSWORD as repository secrets, then re-run."
+              exit 1
+            fi
+            echo "::warning::No keystore secrets — this APK will be debug-signed (dev build only)."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/release-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=release-keystore.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Build APK
         run: flutter build apk --release
 
-      - name: Rename APK
+      - name: Verify APK signature
         run: |
           cp build/app/outputs/flutter-apk/app-release.apk OpenView-android.apk
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -r | head -1)
+          "$apksigner" verify --print-certs OpenView-android.apk
           ls -la OpenView-android.apk
 
       - name: Upload artifact
@@ -219,24 +358,24 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist
-          merge-multiple: false
+          path: release
+          merge-multiple: true
 
-      - name: Flatten artifact files
+      - name: Checksums
+        working-directory: release
         run: |
-          mkdir -p release
-          # Each job uploaded a named artifact folder
-          find dist -type f \( -name '*.zip' -o -name '*.apk' \) -print -exec cp {} release/ \;
-          ls -la release/
+          sha256sum ./*.zip ./*.apk | sed 's|\./||' | tee SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             release/OpenView-linux-x64.zip
             release/OpenView-windows-x64.zip
-            release/OpenView-macos.zip
+            release/OpenView-macos-arm64.zip
             release/OpenView-android.apk
+            release/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

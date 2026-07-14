@@ -29,6 +29,16 @@ doc/api/
 # Local rewrite planning docs — not committed
 .v3-plan/
 
+# Signing material — NEVER commit. Keystores and credentials live outside the
+# repo; CI gets them from repository secrets (KEYSTORE_BASE64, AC_CERTIFICATE…).
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+android/key.properties
+ios/fastlane/report.xml
+ios/fastlane/Preview.html
+
 # Platform build artifacts / generated files
 **/.cxx/
 android/.gradle/
