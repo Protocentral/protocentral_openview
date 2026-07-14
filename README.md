@@ -138,27 +138,6 @@ the same frame; only the payload differs per packet type.
 > new firmware.
 
 <details>
-<summary><b>Legacy packet <code>0x02</code></b> — HealthyPi 5 firmware &lt; 1.0.0 (single combined sample)</summary>
-
-Before firmware 1.0.0, HealthyPi 5 sent one sample of every signal in a single 22-byte
-payload instead of the batched `0x03` / `0x04` packets. Still decoded for compatibility
-(`decodeHealthypiPkt2`):
-
-| Offset | Field | Type |
-|---|---|---|
-| `0–3` | ECG | int32 LE (sign-extended 24-bit ADC) |
-| `4–7` | BioZ / respiration | int32 LE |
-| `8` | BioZ skip flag | uint8 — `1` = discard this BioZ sample |
-| `9–12` | PPG red | int32 LE |
-| `13–16` | PPG IR | int32 LE |
-| `17–18` | Temperature | int16 LE (°C × 100) |
-| `19` | SpO₂ | uint8 (%) |
-| `20` | Heart rate | uint8 (bpm) |
-| `21` | Respiration rate | uint8 (breaths/min) |
-
-</details>
-
-<details>
 <summary><b>HealthyPi 5 over BLE</b> — one characteristic per signal</summary>
 
 Over BLE the board does not batch signals: each GATT characteristic streams a single
