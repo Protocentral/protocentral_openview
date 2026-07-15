@@ -1,0 +1,5 @@
+OpenView 3.0.1
+
+* Removed the unused location dependency, so the app no longer requests
+  location-related permissions
+* Build and packaging improvements

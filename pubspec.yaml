@@ -1,7 +1,7 @@
 name: OpenView
 description: Companion app for ProtoCentral biosignal & sensor boards over USB, BLE, and Wi-Fi.
 
-version: 3.0.0+131
+version: 3.0.1+132
 
 environment:
   sdk: ^3.3.0
