@@ -113,27 +113,43 @@ bug, and it is independent of which keystore we choose.
 Customers have asked for it. It is feasible, and the licence is not the problem
 — the repo is MIT, there is no telemetry, no ads, no Firebase.
 
-**The one blocker is `geolocator`.** It is declared in `pubspec.yaml` but
-**imported nowhere in `lib/`**, and `geolocator_android` pulls in
+**Step 0 — eligibility — DONE.** `geolocator` was declared in `pubspec.yaml` but
+imported nowhere in `lib/`, and `geolocator_android` pulled in
 `com.google.android.gms:play-services-location` — a proprietary dependency
-F-Droid will not build against. Deleting the dependency removes the blocker,
-shrinks the APK, and drops Play Services entirely. That is a one-line change
-plus a `flutter pub get`, and it is worth doing regardless of F-Droid.
+F-Droid will not build against. It has been removed (pubspec + pubspec.lock);
+`flutter analyze` is clean and the APK no longer references Play Services. The
+stale `geolocator_apple` entries in `ios/Podfile.lock` / `macos/Podfile.lock`
+regenerate on the next Apple build and do not affect Android.
 
-After that, F-Droid inclusion is a metadata exercise, not an engineering one:
+**Step 1 — repo metadata — DONE.** F-Droid auto-imports the Fastlane Supply
+layout at `fastlane/metadata/android/en-US/`:
 
-1. Verify `flutter build apk --release` works from a clean checkout (needs the
-   Gradle heap fix above to be confirmed).
-2. Submit a metadata YAML merge request to
-   [fdroiddata](https://gitlab.com/fdroid/fdroiddata) with a build recipe using
-   the Flutter srclib, pinned to our Flutter version, plus
-   `UpdateCheckMode: Tags` and `AutoUpdateMode: Version` so new git tags are
-   picked up automatically.
-3. Expect review round-trips on the first MR.
+- `title.txt`, `short_description.txt` (74/80 chars), `full_description.txt`
+- `images/icon.png` (512×512)
+- `changelogs/131.txt` (keyed by versionCode = build number in `3.0.0+131`)
+- `images/phoneScreenshots/` — **placeholder (only a `.gitkeep`).** Drop real
+  phone-aspect PNG/JPG screenshots here; the ones in `docs/images/` are
+  iPad/desktop and the wrong aspect for phone listings.
 
-Effort: roughly a day for the first submission, then near-zero per release
-(F-Droid builds from tags). Two things to tell users up front: F-Droid signs
-with **its own key**, so the F-Droid build and the Play build cannot upgrade each
-other — switching stores means uninstall/reinstall — and F-Droid builds land
-days after the Play release, because they build and sign on their own
+Remaining work (next session):
+
+1. Confirm `flutter build apk --release` works from a clean checkout (the Gradle
+   heap fix in `android/gradle.properties` is applied but still unverified — no
+   Android build has run since).
+2. Add real phone screenshots to `phoneScreenshots/`.
+3. Fork [fdroiddata](https://gitlab.com/fdroid/fdroiddata) and add
+   `metadata/com.protocentral.openview.yml`: a build recipe that installs our
+   pinned Flutter and runs `flutter build apk --release`, with
+   `UpdateCheckMode: Tags` and `AutoUpdateMode: Version v%v` so new git tags are
+   picked up automatically. versionName/versionCode are read from the built APK.
+4. Prove the recipe locally with `fdroid lint` + `fdroid build -l
+   com.protocentral.openview`, then open the merge request. Expect review
+   round-trips on the first MR (licence detection, the prebuilt Flutter engine
+   discussion — established precedent exists).
+
+Effort remaining: roughly a day for the first submission, then near-zero per
+release (F-Droid builds from tags). Two things to tell users up front: F-Droid
+signs with **its own key**, so the F-Droid build and the Play build cannot
+upgrade each other — switching stores means uninstall/reinstall — and F-Droid
+builds land days after the Play release, because they build and sign on their own
 infrastructure.

@@ -1,0 +1,6 @@
+OpenView 3.0.0 — first v3 release.
+
+* Rebuilt on a single cross-platform codebase for phone, tablet and desktop
+* Unified BLE and Wi-Fi connection flow
+* Record to file and replay sessions
+* Faster, more reliable live plotting

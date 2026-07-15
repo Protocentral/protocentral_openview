@@ -1,4 +1,4 @@
-# Build OpenView release binaries for desktop + Android APK.
+# Build OpenView desktop release binaries.
 #
 # Triggers:
 #   - Git tags matching v* (e.g. v3.0.0) → create a GitHub Release
@@ -6,8 +6,9 @@
 #
 # Artifacts:
 #   OpenView-linux-x64.zip
+#   OpenView-linux-arm64.zip
 #   OpenView-windows-x64.zip
-#   OpenView-macos-arm64.zip    (ad-hoc signed — see the macOS job)
+#   OpenView-macos-universal.zip   (Intel + Apple Silicon; ad-hoc signed — see the macOS job)
 #   SHA256SUMS.txt
 #
 # Desktop only. Mobile ships through the App Store and Google Play, and the
@@ -101,6 +102,54 @@ jobs:
           path: OpenView-linux-x64.zip
           if-no-files-found: error
 
+  # ── Linux desktop (ARM64) ──────────────────────────────────────────────
+  # Native aarch64 build on GitHub's free arm64 runner, for Raspberry Pi and
+  # other ARM SBCs — a common host for ProtoCentral boards. Same steps as the
+  # x64 job, just on ubuntu-24.04-arm.
+  linux-arm64:
+    name: Linux arm64
+    needs: version
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libudev-dev
+
+      - name: Flutter config & deps
+        run: |
+          flutter config --enable-linux-desktop
+          flutter pub get
+
+      - name: Build Linux release
+        run: flutter build linux --release
+
+      - name: Package
+        run: |
+          cd build/linux/arm64/release/bundle
+          zip -r "$GITHUB_WORKSPACE/OpenView-linux-arm64.zip" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenView-linux-arm64
+          path: OpenView-linux-arm64.zip
+          if-no-files-found: error
+
   # ── Windows desktop ────────────────────────────────────────────────────
   windows:
     name: Windows x64
@@ -158,8 +207,12 @@ jobs:
   # user must right-click → Open (or clear the quarantine bit). Developer ID
   # signing + notarization is a follow-up — the AC_CERTIFICATE / APPLE_* secrets
   # for it already exist in this repo.
+  #
+  # Built as a universal binary (x86_64 + arm64) so a single download runs on
+  # both Intel and Apple Silicon Macs. The deployment target is 10.15, so Intel
+  # support reaches back to Catalina.
   macos:
-    name: macOS arm64
+    name: macOS universal
     needs: version
     runs-on: macos-latest
     timeout-minutes: 90
@@ -187,11 +240,15 @@ jobs:
           # Generate the ephemeral xcconfig / plugin registrant without building.
           flutter build macos --release --config-only
 
+          # ARCHS + ONLY_ACTIVE_ARCH=NO force a universal (Intel + Apple Silicon)
+          # binary; the pods (libserialport) build both slices from source.
           xcodebuild \
             -workspace macos/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -derivedDataPath "$RUNNER_TEMP/dd" \
+            ARCHS="x86_64 arm64" \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY=- \
             PROVISIONING_PROFILE_SPECIFIER= \
@@ -205,21 +262,30 @@ jobs:
             find "$RUNNER_TEMP/dd/Build/Products" -maxdepth 3 -name '*.app' || true
             exit 1
           fi
+          # Fail if the main binary is not actually universal.
+          archs=$(lipo -archs "$app/Contents/MacOS/OpenView")
+          echo "OpenView binary archs: $archs"
+          for want in x86_64 arm64; do
+            case " $archs " in
+              *" $want "*) ;;
+              *) echo "::error::macOS binary is missing the $want slice ($archs)"; exit 1 ;;
+            esac
+          done
           codesign --verify --strict --verbose=2 "$app"
           # ditto (not zip) preserves app-bundle metadata and symlinks.
-          ditto -c -k --sequesterRsrc --keepParent "$app" OpenView-macos-arm64.zip
+          ditto -c -k --sequesterRsrc --keepParent "$app" OpenView-macos-universal.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenView-macos-arm64
-          path: OpenView-macos-arm64.zip
+          name: OpenView-macos-universal
+          path: OpenView-macos-universal.zip
           if-no-files-found: error
 
   # ── Publish GitHub Release (tags only) ─────────────────────────────────
   publish:
     name: Publish GitHub Release
-    needs: [linux, windows, macos]
+    needs: [linux, linux-arm64, windows, macos]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -242,8 +308,9 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             release/OpenView-linux-x64.zip
+            release/OpenView-linux-arm64.zip
             release/OpenView-windows-x64.zip
-            release/OpenView-macos-arm64.zip
+            release/OpenView-macos-universal.zip
             release/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

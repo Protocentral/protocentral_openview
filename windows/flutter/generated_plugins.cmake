@@ -6,7 +6,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   desktop_window
   file_selector_windows
   flutter_libserialport
-  geolocator_windows
   permission_handler_windows
   screen_retriever_windows
   universal_ble

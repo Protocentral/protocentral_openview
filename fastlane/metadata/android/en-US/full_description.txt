@@ -1,0 +1,21 @@
+OpenView is the companion app for ProtoCentral biosignal and sensor boards. It
+connects to a board over Bluetooth Low Energy or Wi-Fi, decodes the incoming
+data into signals, plots it live, and records it for later replay and analysis.
+
+One app works with every supported ProtoCentral board, including the HealthyPi
+family and the various ADS, MAX and AFE sensor breakouts.
+
+Features:
+
+* Real-time plotting of ECG, respiration/bio-impedance, PPG and other signals
+* Connect over Bluetooth Low Energy or Wi-Fi (USB is desktop-only)
+* Record sessions to file and replay them later
+* Export recorded data to CSV
+* Adapts from a phone bottom bar to a tablet navigation rail
+
+OpenView is free and open source software (MIT licensed). It contains no ads,
+no analytics and no tracking.
+
+Note: this build talks to hardware. You need a compatible ProtoCentral board to
+stream live data. See the project page for the list of supported boards and
+build documentation.
