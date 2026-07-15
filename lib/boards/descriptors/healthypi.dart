@@ -45,6 +45,14 @@ const _ppgRedChannel = ChannelSpec(
   kind: ChannelKind.ppg,
 );
 
+const _ppgIrChannel = ChannelSpec(
+  id: 'ppgIr',
+  label: 'PPG (IR)',
+  sampleRateHz: 100,
+  unit: SignalUnit.adc,
+  kind: ChannelKind.ppg,
+);
+
 // ── BLE profile (HealthyPi 5) ───────────────────────────────────────────
 //
 // Unlike the Sensything family (one service, one characteristic), HealthyPi 5
@@ -119,6 +127,7 @@ final BoardDescriptor healthypiDescriptor = BoardDescriptor(
     _ecgChannel,
     _biozChannel,
     _ppgRedChannel,
+    _ppgIrChannel,
   ],
   packets: [
     PacketSpec(
