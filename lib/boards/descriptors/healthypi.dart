@@ -121,6 +121,12 @@ final BoardDescriptor healthypiDescriptor = BoardDescriptor(
     _ppgRedChannel,
   ],
   packets: [
+    PacketSpec(
+      pktType: 2,
+      label: 'ECG/BioZ/PPG-Red/PPG-IR/Temp/SpO2/HR/RR',
+      expectedPayloadLength: 22,
+      decode: decodeHealthypiPkt2,
+    ),
     // Firmware v1.0.0+ USB batch packets.
     PacketSpec(
       pktType: 3,
