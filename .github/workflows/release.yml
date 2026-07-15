@@ -104,8 +104,13 @@ jobs:
 
   # ── Linux desktop (ARM64) ──────────────────────────────────────────────
   # Native aarch64 build on GitHub's free arm64 runner, for Raspberry Pi and
-  # other ARM SBCs — a common host for ProtoCentral boards. Same steps as the
-  # x64 job, just on ubuntu-24.04-arm.
+  # other ARM SBCs — a common host for ProtoCentral boards.
+  #
+  # Flutter does not publish prebuilt Linux *arm64* SDK archives, so
+  # subosito/flutter-action can't resolve a pinned version here ("Unable to
+  # determine Flutter version ... architecture: arm64"). Install the SDK with a
+  # shallow git clone at the version tag instead; `flutter` bootstraps the
+  # matching arm64 Dart SDK and engine artifacts on first run.
   linux-arm64:
     name: Linux arm64
     needs: version
@@ -115,12 +120,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
+      - name: Setup Flutter (arm64 via git)
+        run: |
+          git clone --depth 1 --branch "$FLUTTER_VERSION" \
+            https://github.com/flutter/flutter.git "$HOME/flutter"
+          echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Flutter version
+        run: flutter --version
 
       - name: Install system packages
         run: |
