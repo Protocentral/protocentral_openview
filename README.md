@@ -25,7 +25,7 @@ Stream live data over USB, BLE or Wi-Fi · visualize it in real time · record i
 ## What it does
 
 OpenView 3 is a single app for every ProtoCentral board. It receives framed data from
-the board, decodes it into signals, plots it live, and writes it to `.hpd` (BIOSIG v1)
+the board, decodes it into signals, plots it live, and writes it to `.hpd`
 files that round-trip with HealthyPi Studio.
 
 It runs on **Windows, macOS, Linux, Android and iOS** from one Flutter codebase.
@@ -175,7 +175,7 @@ The TMF8829 depth-frame format is documented separately in
 
 ## Recording format
 
-Recordings are written as `.hpd` files (BIOSIG v1) — a block-based, append-only format
+Recordings are written as `.hpd` files — a block-based, append-only format
 that is binary-compatible with **HealthyPi Studio**, so files move freely between the
 two apps.
 
