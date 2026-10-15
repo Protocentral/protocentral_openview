@@ -17,6 +17,7 @@ import '../transport/ble_service.dart';
 import '../transport/transport_service.dart';
 import '../transport/usb_serial_service.dart';
 import '../transport/wifi_service.dart';
+import 'settings_controller.dart';
 
 /// One decoded event for the live console (hex dump or routed event).
 class ConsoleEntry {
@@ -34,11 +35,31 @@ class ConnectionController extends ChangeNotifier {
   final BleService ble;
   final WifiService wifi;
 
+  /// Source of the auto-reconnect preference. Null (e.g. in tests) means
+  /// auto-reconnect is off.
+  final SettingsController? settings;
+
   ConnectionController({
     required this.usb,
     required this.ble,
     required this.wifi,
+    this.settings,
   });
+
+  /// How often to look for the lost port while reconnecting.
+  static const reconnectPollInterval = Duration(milliseconds: 500);
+
+  /// Delay between the port reappearing and opening it, so the board's
+  /// bootloader has handed over to the sketch (native-USB boards such as the
+  /// Leonardo briefly enumerate as a bootloader port first).
+  static const reconnectSettleDelay = Duration(milliseconds: 1200);
+
+  /// Give up reconnecting after this long.
+  static const reconnectTimeout = Duration(seconds: 30);
+
+  /// A link that drops again within this window of a reconnect is treated as
+  /// the same outage, so a flapping port can't extend the timeout forever.
+  static const _reconnectStableAfter = Duration(seconds: 5);
 
   TransportService? _active;
   BoardDescriptor? _descriptor;
@@ -56,8 +77,27 @@ class ConnectionController extends ChangeNotifier {
   TransportStatus _status = TransportStatus.idle;
   TransportStatus get status => _status;
 
+  /// Target passed to the last [connect]; survives a lost link.
+  TransportTarget? _lastTarget;
+
+  bool _reconnecting = false;
+  // Bumped to cancel an in-flight reconnect loop.
+  int _reconnectGen = 0;
+  DateTime? _reconnectDeadline;
+  DateTime? _reconnectedAt;
+
+  /// True while a lost USB link is being re-established. The session
+  /// (descriptor, buffers, packet listeners) is kept alive meanwhile, so the
+  /// UI should keep showing it rather than the not-connected state.
+  bool get reconnecting => _reconnecting;
+
+  /// Connected, or reconnecting with the session kept alive.
+  bool get hasSession =>
+      _status == TransportStatus.connected || _reconnecting;
+
   BoardDescriptor? get descriptor => _descriptor;
-  TransportTarget? get target => _active?.connectedTarget;
+  TransportTarget? get target =>
+      _active?.connectedTarget ?? (_reconnecting ? _lastTarget : null);
   TransportKind? get transportKind => _active?.kind;
 
   int _packetsOk = 0;
@@ -113,6 +153,7 @@ class ConnectionController extends ChangeNotifier {
   }) async {
     await disconnect();
     _descriptor = descriptor;
+    _lastTarget = target;
 
     // Pick the right transport for the target kind.
     final TransportService transport = switch (target.kind) {
@@ -218,6 +259,8 @@ class ConnectionController extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
+    _cancelReconnect();
+    _reconnectDeadline = null;
     await _bytesSub?.cancel();
     await _bleFramesSub?.cancel();
     await _eventsSub?.cancel();
@@ -314,6 +357,80 @@ class ConnectionController extends ChangeNotifier {
 
   void _onTransportEvent(TransportEvent e) {
     _setStatus(e.status, log: e.message);
+    if (e.status == TransportStatus.lost) _maybeStartReconnect();
+  }
+
+  void _maybeStartReconnect() {
+    if (_reconnecting) return;
+    final target = _lastTarget;
+    if (!identical(_active, usb) ||
+        target == null ||
+        _descriptor == null ||
+        !(settings?.autoReconnectUsb ?? false)) {
+      return;
+    }
+    final now = DateTime.now();
+    final reconnectedAt = _reconnectedAt;
+    final sameOutage = _reconnectDeadline != null &&
+        reconnectedAt != null &&
+        now.difference(reconnectedAt) < _reconnectStableAfter;
+    if (!sameOutage) _reconnectDeadline = now.add(reconnectTimeout);
+    _reconnecting = true;
+    _log('status', 'reconnecting to ${target.id}…');
+    notifyListeners();
+    _reconnectLoop(++_reconnectGen, target, usb.serialNumber);
+  }
+
+  /// Stop a reconnect in progress and fall back to the not-connected state.
+  /// Called from the UI's Cancel button.
+  Future<void> cancelReconnect() async {
+    if (!_reconnecting) return;
+    _log('status', 'reconnect cancelled');
+    await disconnect();
+  }
+
+  void _cancelReconnect() {
+    _reconnectGen++;
+    _reconnecting = false;
+  }
+
+  Future<void> _reconnectLoop(
+      int gen, TransportTarget lost, String? serialNumber) async {
+    while (gen == _reconnectGen &&
+        DateTime.now().isBefore(_reconnectDeadline!)) {
+      await Future<void>.delayed(reconnectPollInterval);
+      if (gen != _reconnectGen) return;
+      if (usb.findPort(lost, serialNumber: serialNumber) == null) continue;
+
+      await Future<void>.delayed(reconnectSettleDelay);
+      if (gen != _reconnectGen) return;
+      // Re-resolve after settling: the name can change while the board
+      // finishes enumerating.
+      final port = usb.findPort(lost, serialNumber: serialNumber);
+      if (port == null) continue;
+
+      // A packet cut off by the reset must not be glued to the first bytes
+      // of the new stream.
+      _framer?.reset();
+      try {
+        await usb.connect(port);
+      } catch (e) {
+        if (gen != _reconnectGen) return;
+        _log('error', 'reconnect to ${port.id} failed: $e');
+        continue;
+      }
+      if (gen != _reconnectGen) return;
+      _reconnecting = false;
+      _reconnectedAt = DateTime.now();
+      _lastTarget = port;
+      _log('status', 'reconnected to ${port.id}');
+      _setStatus(usb.status);
+      return;
+    }
+    if (gen != _reconnectGen) return;
+    _log('error', 'gave up reconnecting to ${lost.id} after '
+        '${reconnectTimeout.inSeconds} s');
+    await disconnect();
   }
 
   void _setStatus(TransportStatus s, {String? log}) {
@@ -351,6 +468,7 @@ class ConnectionController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _cancelReconnect();
     _bytesSub?.cancel();
     _bleFramesSub?.cancel();
     _eventsSub?.cancel();

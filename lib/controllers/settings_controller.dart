@@ -26,6 +26,7 @@ class SettingsController extends ChangeNotifier {
   int _repaintHz = PlatformV3.isDesktop ? 60 : 30;
   String? _recordingDir; // null → default under Documents/
   bool _autoCheckUpdates = true;
+  bool _autoReconnectUsb = true;
   DateTime? _lastUpdateCheck;
   String? _skippedUpdateVersion;
 
@@ -41,6 +42,10 @@ class SettingsController extends ChangeNotifier {
   /// but the preference is stored for every platform so toggling it on a
   /// store build is harmless.
   bool get autoCheckUpdates => _autoCheckUpdates;
+
+  /// Whether a USB link that drops on its own (unplug, board reset) is
+  /// reopened automatically when the port comes back.
+  bool get autoReconnectUsb => _autoReconnectUsb;
 
   /// When the last update check completed, used to keep it to once a day.
   DateTime? get lastUpdateCheck => _lastUpdateCheck;
@@ -65,6 +70,7 @@ class SettingsController extends ChangeNotifier {
         _recordingDir = dirOverride;
       }
       _autoCheckUpdates = json['autoCheckUpdates'] as bool? ?? _autoCheckUpdates;
+      _autoReconnectUsb = json['autoReconnectUsb'] as bool? ?? _autoReconnectUsb;
       final lastCheck = json['lastUpdateCheck'] as String?;
       if (lastCheck != null) _lastUpdateCheck = DateTime.tryParse(lastCheck);
       final skipped = json['skippedUpdateVersion'] as String?;
@@ -114,6 +120,13 @@ class SettingsController extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> setAutoReconnectUsb(bool enabled) async {
+    if (enabled == _autoReconnectUsb) return;
+    _autoReconnectUsb = enabled;
+    notifyListeners();
+    await _save();
+  }
+
   /// Stamp the update check clock. Called after every completed check —
   /// including one that found nothing — so a quiet repo doesn't cause a
   /// request on every launch.
@@ -149,6 +162,7 @@ class SettingsController extends ChangeNotifier {
         'repaintHz': _repaintHz,
         'recordingDir': _recordingDir,
         'autoCheckUpdates': _autoCheckUpdates,
+        'autoReconnectUsb': _autoReconnectUsb,
         'lastUpdateCheck': _lastUpdateCheck?.toIso8601String(),
         'skippedUpdateVersion': _skippedUpdateVersion,
       }));

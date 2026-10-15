@@ -14,7 +14,6 @@ import '../../controllers/recordings_browser_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../recording/recording_models.dart';
 import '../../theme/app_spacing.dart';
-import '../../transport/transport_service.dart';
 import '../widgets/colormap.dart';
 import '../widgets/heatmap_view.dart';
 import '../widgets/multi_channel_waveform_chart.dart';
@@ -83,9 +82,8 @@ class _LiveScreenState extends State<LiveScreen> {
     final theme = Theme.of(context);
     final conn = context.watch<ConnectionController>();
     final repaintHz = context.watch<SettingsController>().repaintHz;
-    final connected = conn.status == TransportStatus.connected;
-
-    if (!connected) {
+    // Keep the session on screen while a dropped USB link is reconnecting.
+    if (!conn.hasSession) {
       // Drop any prior chart controller — the descriptor is gone.
       if (_chart != null) {
         _chart?.dispose();
@@ -201,8 +199,57 @@ class _LiveScreenState extends State<LiveScreen> {
         children: [
           _Header(conn: conn),
           const SizedBox(height: AppSpacing.sm),
+          if (conn.reconnecting) ...[
+            _ReconnectBanner(conn: conn),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           ...bodyChildren,
         ],
+      ),
+    );
+  }
+}
+
+/// Shown while a dropped USB link is being re-established. The charts stay
+/// up (frozen) so the session resumes in place once the board is back.
+class _ReconnectBanner extends StatelessWidget {
+  final ConnectionController conn;
+  const _ReconnectBanner({required this.conn});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final port = conn.target?.id;
+    return Material(
+      color: scheme.tertiaryContainer,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: scheme.onTertiaryContainer),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                'Device disconnected — reconnecting'
+                '${port == null ? '' : ' to $port'}…',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: scheme.onTertiaryContainer),
+              ),
+            ),
+            TextButton(
+              onPressed: conn.cancelReconnect,
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
       ),
     );
   }

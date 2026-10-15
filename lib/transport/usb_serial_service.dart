@@ -28,6 +28,7 @@ class UsbSerialService extends TransportService {
   // Bumped on every connect/disconnect so a late link-loss handler can tell
   // it has been superseded.
   int _session = 0;
+  String? _serialNumber;
 
   @override
   TransportKind get kind => TransportKind.usb;
@@ -43,6 +44,43 @@ class UsbSerialService extends TransportService {
 
   @override
   Stream<TransportEvent> get events => _eventsController.stream;
+
+  /// USB serial number of the most recently opened port, if the device
+  /// reports one. Kept after the link drops so a reconnect can find the
+  /// same board even if the OS gives it a different port name.
+  String? get serialNumber => _serialNumber;
+
+  /// Look for a port that was lost: the same port name first, else any port
+  /// whose USB serial number matches [serialNumber]. Returns null if neither
+  /// is present yet.
+  TransportTarget? findPort(TransportTarget lost, {String? serialNumber}) {
+    final List<String> names;
+    try {
+      names = SerialPort.availablePorts;
+    } catch (_) {
+      return null;
+    }
+    if (names.contains(lost.id)) return lost;
+    if (serialNumber == null || serialNumber.isEmpty) return null;
+    for (final name in names) {
+      final p = SerialPort(name);
+      try {
+        if (p.serialNumber == serialNumber) {
+          return TransportTarget(
+            kind: TransportKind.usb,
+            id: name,
+            displayName: name,
+            subtitle: lost.subtitle,
+          );
+        }
+      } catch (_) {
+        // Metadata can throw for in-use ports; skip them.
+      } finally {
+        p.dispose();
+      }
+    }
+    return null;
+  }
 
   /// Override the baud rate used on the next `connect()`. Boards declare
   /// their default in their `UsbProfile`.
@@ -116,6 +154,11 @@ class UsbSerialService extends TransportService {
         ..parity = SerialPortParity.none
         ..setFlowControl(SerialPortFlowControl.none);
       p.config = cfg;
+      try {
+        _serialNumber = p.serialNumber;
+      } catch (_) {
+        _serialNumber = null;
+      }
       _port = p;
       _reader = SerialPortReader(p, timeout: 100);
       // A read error or the stream closing means the device went away

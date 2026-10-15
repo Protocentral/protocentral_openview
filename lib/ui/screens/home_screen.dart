@@ -10,7 +10,6 @@ import '../../controllers/connection_controller.dart';
 import '../../controllers/recordings_browser_controller.dart';
 import '../../recording/recording_file_info.dart';
 import '../../theme/app_spacing.dart';
-import '../../transport/transport_service.dart';
 import '../app_routes.dart';
 
 /// Dashboard home: a full-width connection hero (Connect CTA when idle, live
@@ -85,7 +84,7 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final connected = conn.status == TransportStatus.connected;
+    final connected = conn.hasSession;
     final scheme = Theme.of(context).colorScheme;
 
     return Card(
@@ -166,12 +165,13 @@ class _ConnectedHero extends StatelessWidget {
       children: [
         Row(
           children: [
-            _Dot(color: scheme.secondary),
+            _Dot(color: conn.reconnecting ? scheme.tertiary : scheme.secondary),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 '${conn.descriptor?.displayName ?? 'Connected'} · '
-                '${conn.transportKind?.name.toUpperCase() ?? ''}',
+                '${conn.transportKind?.name.toUpperCase() ?? ''}'
+                '${conn.reconnecting ? ' · reconnecting…' : ''}',
                 style: theme.textTheme.titleLarge,
               ),
             ),
