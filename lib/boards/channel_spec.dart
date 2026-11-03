@@ -47,6 +47,7 @@ enum ChannelKind {
   gsr,
   imu,
   eeg,
+  emg,
   capacitance,
   derived,
   unknown,

@@ -213,6 +213,7 @@ class ReplaySession extends ChangeNotifier {
     final low = id.toLowerCase();
     if (low.contains('ecg')) return ChannelKind.ecg;
     if (low.contains('eeg')) return ChannelKind.eeg;
+    if (low.contains('emg')) return ChannelKind.emg;
     if (low.contains('ppg')) return ChannelKind.ppg;
     if (low.contains('bioz') || low.contains('imp')) return ChannelKind.bioz;
     if (low.contains('resp')) return ChannelKind.resp;

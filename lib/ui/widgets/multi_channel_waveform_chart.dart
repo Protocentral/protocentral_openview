@@ -129,6 +129,7 @@ class _MultiChannelWaveformChartState extends State<MultiChannelWaveformChart>
       case ChannelKind.imu:
         return c.imuX;
       case ChannelKind.eeg:
+      case ChannelKind.emg:
         return c.eeg;
       case ChannelKind.capacitance:
         return c.ppgIr;
