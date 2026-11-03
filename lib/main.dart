@@ -59,7 +59,8 @@ Future<void> main() async {
   final usb = UsbSerialService();
   final ble = BleService();
   final wifi = WifiService();
-  final connection = ConnectionController(usb: usb, ble: ble, wifi: wifi);
+  final connection = ConnectionController(
+      usb: usb, ble: ble, wifi: wifi, settings: settings);
   final scan = ScanController(usb: usb, ble: ble);
   final developerBle = DeveloperBleController();
   final smp = SmpController();

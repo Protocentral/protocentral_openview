@@ -12,6 +12,7 @@ import '../../controllers/recordings_browser_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../controllers/update_controller.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/platform_v3.dart';
 import '../widgets/update_banner.dart';
 
 /// Phase 5 — user-configurable settings: theme, live repaint cap, and the
@@ -79,6 +80,29 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
+
+        // --- Connection -------------------------------------------------
+        // USB serial is desktop-only.
+        if (PlatformV3.isDesktop) ...[
+          _SectionCard(
+            icon: Icons.usb,
+            title: 'USB connection',
+            subtitle: 'What to do when a USB board drops off, e.g. after a '
+                'reset or a loose cable.',
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: settings.autoReconnectUsb,
+              title: const Text('Reconnect automatically'),
+              subtitle: const Text(
+                  'Keep the session open and reopen the port when the board '
+                  'comes back (up to 30 s).'),
+              onChanged: (v) =>
+                  context.read<SettingsController>().setAutoReconnectUsb(v),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
 
         // --- Recording --------------------------------------------------
         const _RecordingDirCard(),

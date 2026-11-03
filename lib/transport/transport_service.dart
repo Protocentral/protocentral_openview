@@ -7,7 +7,17 @@ import 'package:flutter/foundation.dart';
 
 enum TransportKind { ble, usb, wifi }
 
-enum TransportStatus { idle, scanning, connecting, connected, disconnecting, error }
+/// `lost` means the link dropped without the user asking (cable pulled,
+/// board reset). The transport has already released its resources.
+enum TransportStatus {
+  idle,
+  scanning,
+  connecting,
+  connected,
+  disconnecting,
+  lost,
+  error,
+}
 
 class TransportEvent {
   final TransportStatus status;
