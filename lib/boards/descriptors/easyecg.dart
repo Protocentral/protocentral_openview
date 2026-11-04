@@ -4,6 +4,7 @@
 import '../board_descriptor.dart';
 import '../channel_spec.dart';
 import '../decoders/easyecg_decoders.dart';
+import '../metric_spec.dart';
 import '../packet_spec.dart';
 import '../transport_profile.dart';
 
@@ -33,6 +34,7 @@ final BoardDescriptor easyEcgDescriptor = BoardDescriptor(
       kind: ChannelKind.ecg,
       displayMin: -2048,
       displayMax: 2047,
+      optional: true,
     ),
   ],
   packets: [
@@ -41,6 +43,26 @@ final BoardDescriptor easyEcgDescriptor = BoardDescriptor(
       label: 'ECG/HR/Status',
       expectedPayloadLength: 8,
       decode: decodeEasyEcgPkt2,
+    ),
+  ],
+  metrics: const [
+    MetricSpec(
+      eventKey: 'heartRate',
+      label: 'Heart rate',
+      kind: MetricKind.heartRate,
+      unit: 'bpm',
+      zeroMeansNoData: true,
+      qualityEventKey: 'signalStatus',
+    ),
+    MetricSpec(
+      eventKey: 'signalStatus',
+      label: 'Signal',
+      kind: MetricKind.signalStatus,
+      states: {
+        0: MetricState('OK', MetricSeverity.ok),
+        1: MetricState('Lead-off or mains pickup', MetricSeverity.warning),
+        2: MetricState('Amplifier saturated', MetricSeverity.error),
+      },
     ),
   ],
   notes: 'ProtoCentral easyECG single-lead ECG breakout (Qwiic), streamed '

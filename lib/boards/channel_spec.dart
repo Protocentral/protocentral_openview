@@ -12,6 +12,10 @@ class ChannelSpec {
   final double displayMax;
   final List<FilterPreset> defaultFilters;
 
+  /// Starts hidden in the live view, with a toggle to show it. Mainly for
+  /// diagnostic traces; the channel is still buffered and recorded.
+  final bool optional;
+
   const ChannelSpec({
     required this.id,
     required this.label,
@@ -21,6 +25,7 @@ class ChannelSpec {
     this.displayMin = -1,
     this.displayMax = 1,
     this.defaultFilters = const [],
+    this.optional = false,
   });
 }
 

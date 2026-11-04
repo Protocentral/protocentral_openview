@@ -4,6 +4,7 @@
 import '../board_descriptor.dart';
 import '../channel_spec.dart';
 import '../decoders/easyemg_decoders.dart';
+import '../metric_spec.dart';
 import '../packet_spec.dart';
 import '../transport_profile.dart';
 
@@ -41,6 +42,14 @@ final BoardDescriptor easyEmgDescriptor = BoardDescriptor(
       label: 'sEMG/Envelope/%MVC',
       expectedPayloadLength: 8,
       decode: decodeEasyEmgPkt2,
+    ),
+  ],
+  metrics: const [
+    MetricSpec(
+      eventKey: 'percentMvc',
+      label: 'Effort (MVC)',
+      kind: MetricKind.effort,
+      unit: '%',
     ),
   ],
   notes: 'ProtoCentral easyEMG surface EMG breakout (Qwiic), streamed through '

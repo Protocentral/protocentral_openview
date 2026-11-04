@@ -4,6 +4,7 @@
 import '../board_descriptor.dart';
 import '../channel_spec.dart';
 import '../decoders/ads1292r_decoders.dart';
+import '../metric_spec.dart';
 import '../packet_spec.dart';
 import '../transport_profile.dart';
 
@@ -39,5 +40,6 @@ final BoardDescriptor ads1292rDescriptor = BoardDescriptor(
       decode: decodeAds1292rPkt2,
     ),
   ],
+  metrics: const [heartRateMetric, respRateMetric],
   notes: 'TI ADS1292R 2-channel ECG/respiration analog front-end.',
 );

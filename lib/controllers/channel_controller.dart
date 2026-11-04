@@ -52,7 +52,7 @@ class ChannelController extends ChangeNotifier {
 
   ChannelController({required this.channels, required this.buffers}) {
     for (final c in channels) {
-      _strips[c.id] = StripState();
+      _strips[c.id] = StripState(visible: !c.optional);
     }
   }
 
@@ -150,6 +150,13 @@ class ChannelController extends ChangeNotifier {
 
   final Map<String, StripState> _strips = {};
   StripState strip(String id) => _strips[id] ??= StripState();
+
+  void setVisible(String id, bool visible) {
+    final s = strip(id);
+    if (s.visible == visible) return;
+    s.visible = visible;
+    notifyListeners();
+  }
 
   void setYMode(String id, YMode mode) {
     final s = strip(id);

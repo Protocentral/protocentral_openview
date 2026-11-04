@@ -16,6 +16,7 @@ import '../../recording/recording_models.dart';
 import '../../theme/app_spacing.dart';
 import '../widgets/colormap.dart';
 import '../widgets/heatmap_view.dart';
+import '../widgets/metrics_panel.dart';
 import '../widgets/multi_channel_waveform_chart.dart';
 
 class LiveScreen extends StatefulWidget {
@@ -122,7 +123,12 @@ class _LiveScreenState extends State<LiveScreen> {
       bodyChildren.add(_Controls(chart: chart));
       bodyChildren.add(const SizedBox(height: AppSpacing.sm));
       bodyChildren.add(Expanded(
-        child: MultiChannelWaveformChart(controller: chart, refreshHz: repaintHz),
+        child: MetricsLayout(
+          metrics: descriptor.metrics,
+          read: () => conn.freshEvents,
+          child:
+              MultiChannelWaveformChart(controller: chart, refreshHz: repaintHz),
+        ),
       ));
       bodyChildren.add(AnimatedBuilder(
         animation: chart,
@@ -397,6 +403,11 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final descriptor = conn.descriptor!;
+    // Events with their own readout beside the chart don't repeat as chips.
+    final readoutKeys = descriptor.metrics.map((m) => m.eventKey).toSet();
+    final chipEvents = conn.latestEvents.entries
+        .where((e) => !readoutKeys.contains(e.key))
+        .toList();
     return Row(
       children: [
         Expanded(
@@ -414,10 +425,10 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        if (conn.latestEvents.isNotEmpty) ...[
+        if (chipEvents.isNotEmpty) ...[
           Wrap(
             spacing: AppSpacing.xs,
-            children: conn.latestEvents.entries
+            children: chipEvents
                 .map((e) => Chip(
                       visualDensity: VisualDensity.compact,
                       label: Text('${e.key}: ${e.value}'),
@@ -475,6 +486,13 @@ class _Controls extends StatelessWidget {
               showSelectedIcon: false,
             ),
             _WindowMenu(chart: chart),
+            for (final c in chart.channels)
+              if (c.optional)
+                FilterChip(
+                  label: Text(c.label),
+                  selected: chart.strip(c.id).visible,
+                  onSelected: (v) => chart.setVisible(c.id, v),
+                ),
           ],
         );
       },

@@ -117,6 +117,21 @@ class ConnectionController extends ChangeNotifier {
   /// Most-recent events from the router (HR, SpO2, etc.).
   final Map<String, num> latestEvents = {};
 
+  /// How long the live readouts trust an event without a newer one.
+  static const eventStaleAfter = Duration(seconds: 2);
+
+  DateTime? _lastEventAt;
+
+  /// [latestEvents] while the stream is delivering them, otherwise empty, so
+  /// a stalled or dropped link can't leave an old reading looking live.
+  Map<String, num> get freshEvents {
+    final at = _lastEventAt;
+    if (at == null || DateTime.now().difference(at) > eventStaleAfter) {
+      return const {};
+    }
+    return latestEvents;
+  }
+
   /// Per-channel sample-count tally (for the dashboard placeholder).
   final Map<String, int> channelSampleCounts = {};
 
@@ -224,6 +239,7 @@ class ConnectionController extends ChangeNotifier {
       },
       onEvent: (key, value) {
         latestEvents[key] = value;
+        _lastEventAt = DateTime.now();
         _log('event', '$key=$value');
       },
       onUnknown: (pktType, len) {
@@ -453,6 +469,7 @@ class ConnectionController extends ChangeNotifier {
     _bytesIn = 0;
     _connectedAt = null;
     _lastRxLogAt = null;
+    _lastEventAt = null;
     latestEvents.clear();
     channelSampleCounts.clear();
     channelBuffers.clear();
