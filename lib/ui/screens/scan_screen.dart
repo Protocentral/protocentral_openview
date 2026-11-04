@@ -530,7 +530,9 @@ class _Hints extends StatelessWidget {
       hints.add(_HintLine(
         icon: Icons.warning_amber,
         color: theme.colorScheme.error,
-        text: 'Scan: $scanError',
+        text: transport == TransportKind.usb
+            ? 'Could not list USB ports: $scanError'
+            : 'Scan: $scanError',
       ));
     }
 
@@ -558,7 +560,9 @@ class _Hints extends StatelessWidget {
       ));
     } else {
       // USB
-      if (results.isEmpty && !scanning) {
+      if (results.isEmpty && !scanning && scanError != null) {
+        // The scan failed, so it can't say whether a board is plugged in.
+      } else if (results.isEmpty && !scanning) {
         hints.add(_HintLine(
           icon: Icons.info_outline,
           color: theme.colorScheme.onSurfaceVariant,

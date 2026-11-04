@@ -15,6 +15,11 @@ import 'transport_service.dart';
 /// `transport_factory.dart`. The `dart:io` `Platform` check inside `scan`
 /// is a belt-and-braces guard.
 class UsbSerialService extends TransportService {
+  UsbSerialService({List<String> Function()? listPorts})
+      : _listPorts = listPorts ?? (() => SerialPort.availablePorts);
+
+  final List<String> Function() _listPorts;
+
   final _bytesController = StreamController<Uint8List>.broadcast();
   final _eventsController = StreamController<TransportEvent>.broadcast();
 
@@ -98,7 +103,7 @@ class UsbSerialService extends TransportService {
     _setStatus(TransportStatus.scanning);
     final targets = <TransportTarget>[];
     try {
-      for (final name in SerialPort.availablePorts) {
+      for (final name in _listPorts()) {
         final p = SerialPort(name);
         String display = name;
         String? subtitle;
@@ -121,6 +126,9 @@ class UsbSerialService extends TransportService {
     } catch (e) {
       _eventsController.add(TransportEvent(TransportStatus.error,
           message: 'scan failed', error: e));
+      // Let the caller report it: an empty list would read as "nothing plugged
+      // in", which is misleading when the serial library itself failed to load.
+      rethrow;
     } finally {
       _setStatus(TransportStatus.idle);
     }

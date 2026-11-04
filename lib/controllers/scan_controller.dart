@@ -47,6 +47,7 @@ class ScanController extends ChangeNotifier {
     notifyListeners();
     try {
       if (includeUsb) {
+        _usbResults = const [];
         final targets = await usb.scan();
         _usbResults = targets.map(_annotate).toList(growable: false);
       } else {
