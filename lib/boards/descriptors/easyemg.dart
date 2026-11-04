@@ -14,13 +14,13 @@ final BoardDescriptor easyEmgDescriptor = BoardDescriptor(
   manufacturer: 'ProtoCentral',
   transports: const TransportSupport(usb: true),
   usbProfile: const UsbProfile(
-    baudRate: 57600,
+    baudRate: 115200,
   ),
   channels: const [
     ChannelSpec(
       id: 'emg',
       label: 'sEMG',
-      sampleRateHz: 125,
+      sampleRateHz: 500,
       unit: SignalUnit.adc,
       kind: ChannelKind.emg,
       displayMin: -2048,
@@ -29,7 +29,7 @@ final BoardDescriptor easyEmgDescriptor = BoardDescriptor(
     ChannelSpec(
       id: 'emg_envelope',
       label: 'RMS envelope',
-      sampleRateHz: 125,
+      sampleRateHz: 500,
       unit: SignalUnit.adc,
       kind: ChannelKind.emg,
       displayMin: 0,
@@ -53,7 +53,7 @@ final BoardDescriptor easyEmgDescriptor = BoardDescriptor(
     ),
   ],
   notes: 'ProtoCentral easyEMG surface EMG breakout (Qwiic), streamed through '
-      'a host running the 06.OpenView Arduino example. By default the sketch '
-      'records a 5-second maximum contraction at startup and sends no packets '
-      'until that finishes; %MVC stays 0 if the step is disabled.',
+      'a host running the 06.OpenView Arduino example at 500 Hz. %MVC stays 0 '
+      'until the sketch has recorded a maximum contraction, which runs for 5 '
+      'seconds while the on-board LED is lit after reset.',
 );

@@ -90,18 +90,21 @@ void main() {
   });
 
   group('descriptors match the Arduino sketches', () {
-    for (final id in ['easyecg', 'easyemg']) {
-      test('$id: USB only, 57600 baud, 125 Hz, 8-byte pktType 2', () {
+    for (final (id, baud, hz) in [
+      ('easyecg', 57600, 125),
+      ('easyemg', 115200, 500),
+    ]) {
+      test('$id: USB only, $baud baud, $hz Hz, 8-byte pktType 2', () {
         final board = BoardRegistry.byId(id)!;
 
         expect(board.transports.usb, isTrue);
         expect(board.transports.ble, isFalse);
         expect(board.transports.wifi, isFalse);
-        expect(board.usbProfile!.baudRate, 57600);
+        expect(board.usbProfile!.baudRate, baud);
         expect(board.packet(2)!.expectedPayloadLength, 8);
         expect(board.channels, hasLength(2));
         for (final c in board.channels) {
-          expect(c.sampleRateHz, 125);
+          expect(c.sampleRateHz, hz);
         }
       });
 

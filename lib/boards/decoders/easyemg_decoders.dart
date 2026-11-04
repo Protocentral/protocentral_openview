@@ -6,11 +6,11 @@ import 'dart:typed_data';
 import '../../protocol/decoded_packet.dart';
 import 'shared_codecs.dart';
 
-/// easyEMG Breakout — pktType 2 — 125 Hz, signed 12-bit ADC counts.
+/// easyEMG Breakout — pktType 2 — 500 Hz, signed 12-bit ADC counts.
 ///
 /// Streamed by the `06.OpenView` example in protocentral_easyemg_arduino. The
-/// firmware samples at 1000 SPS and averages 8 samples into each packet, so
-/// the sEMG trace is band-limited to 62.5 Hz. The envelope is computed from
+/// firmware samples at 1000 SPS and averages 2 samples into each packet, so
+/// the sEMG trace is band-limited to 250 Hz. The envelope is computed from
 /// every 1000 SPS sample and keeps the full bandwidth.
 ///
 /// Payload layout (8 bytes):
