@@ -61,7 +61,10 @@ jobs:
   linux:
     name: Linux x64
     needs: version
-    runs-on: ubuntu-latest
+    # Binaries need at least the glibc they were built against, so this sets the
+    # oldest Linux we can run on. Don't use ubuntu-latest: when it moved to a
+    # newer image, v3.3.1 stopped finding USB ports on Ubuntu 24.04.
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -92,6 +95,9 @@ jobs:
         # Only builds published here may point users at a GitHub Release zip;
         # store builds must stay on the default `store` channel.
         run: flutter build linux --release --dart-define=OV_CHANNEL=github
+
+      - name: Check glibc requirement
+        run: .github/scripts/check-glibc.sh build/linux/x64/release/bundle 2.35
 
       - name: Package
         run: |
@@ -150,6 +156,9 @@ jobs:
         # Only builds published here may point users at a GitHub Release zip;
         # store builds must stay on the default `store` channel.
         run: flutter build linux --release --dart-define=OV_CHANNEL=github
+
+      - name: Check glibc requirement
+        run: .github/scripts/check-glibc.sh build/linux/arm64/release/bundle 2.39
 
       - name: Package
         run: |
