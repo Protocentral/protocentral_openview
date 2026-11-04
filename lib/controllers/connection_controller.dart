@@ -318,7 +318,12 @@ class ConnectionController extends ChangeNotifier {
 
   DateTime? _lastRxLogAt;
 
+  /// Called with the size of every incoming chunk while something is measuring
+  /// stream timing.
+  void Function(int bytes)? onChunk;
+
   void _onBytes(Uint8List chunk) {
+    onChunk?.call(chunk.length);
     _bytesIn += chunk.length;
     _maybeLogRx(chunk);
     // BLE decode is driven from [_onBleFrame]; only USB/Wi-Fi feed the framer
@@ -335,6 +340,7 @@ class ConnectionController extends ChangeNotifier {
   /// [BleFrame.pktType]; framed frames are handed to the framer (BLE delivers
   /// complete messages, so no cross-notification resync is needed).
   void _onBleFrame(BleFrame frame) {
+    onChunk?.call(frame.payload.length);
     _bytesIn += frame.payload.length;
     _maybeLogRx(frame.payload);
     if (frame.framed) {
