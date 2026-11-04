@@ -23,6 +23,7 @@ class SignalColors extends ThemeExtension<SignalColors> {
   final Color qualityWarn;
   final Color qualityBad;
   final Color gridLine;
+  final Color ecgGrid;
   final Color axisLabel;
   final Color cursor;
 
@@ -43,6 +44,7 @@ class SignalColors extends ThemeExtension<SignalColors> {
     required this.qualityWarn,
     required this.qualityBad,
     required this.gridLine,
+    required this.ecgGrid,
     required this.axisLabel,
     required this.cursor,
   });
@@ -64,6 +66,7 @@ class SignalColors extends ThemeExtension<SignalColors> {
     qualityWarn: Color(0xFFFB923C),
     qualityBad: Color(0xFFF87171),
     gridLine: Color(0xFF3A444A),
+    ecgGrid: Color(0xFF6B3A3F),
     axisLabel: Color(0xFF8C9498),
     cursor: Color(0xFFFBBF24),
   );
@@ -85,6 +88,7 @@ class SignalColors extends ThemeExtension<SignalColors> {
     qualityWarn: Color(0xFFEA580C),
     qualityBad: Color(0xFFDC2626),
     gridLine: Color(0xFFE7EAEC),
+    ecgGrid: Color(0xFFF0B4B4),
     axisLabel: Color(0xFF5A6266),
     cursor: Color(0xFFB45309),
   );
@@ -107,6 +111,7 @@ class SignalColors extends ThemeExtension<SignalColors> {
     Color? qualityWarn,
     Color? qualityBad,
     Color? gridLine,
+    Color? ecgGrid,
     Color? axisLabel,
     Color? cursor,
   }) {
@@ -127,6 +132,7 @@ class SignalColors extends ThemeExtension<SignalColors> {
       qualityWarn: qualityWarn ?? this.qualityWarn,
       qualityBad: qualityBad ?? this.qualityBad,
       gridLine: gridLine ?? this.gridLine,
+      ecgGrid: ecgGrid ?? this.ecgGrid,
       axisLabel: axisLabel ?? this.axisLabel,
       cursor: cursor ?? this.cursor,
     );
@@ -152,6 +158,7 @@ class SignalColors extends ThemeExtension<SignalColors> {
       qualityWarn: Color.lerp(qualityWarn, other.qualityWarn, t)!,
       qualityBad: Color.lerp(qualityBad, other.qualityBad, t)!,
       gridLine: Color.lerp(gridLine, other.gridLine, t)!,
+      ecgGrid: Color.lerp(ecgGrid, other.ecgGrid, t)!,
       axisLabel: Color.lerp(axisLabel, other.axisLabel, t)!,
       cursor: Color.lerp(cursor, other.cursor, t)!,
     );

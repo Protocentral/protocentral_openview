@@ -8,6 +8,11 @@ import '../metric_spec.dart';
 import '../packet_spec.dart';
 import '../transport_profile.dart';
 
+// One count is 1 mV at the ADC (2.048 V full scale, 12-bit) and the front end's
+// gain is x535, so 1 mV at the electrodes is 535 counts. That gain is the
+// schematic's design value, not yet measured on production boards.
+const double _countsPerMv = 535;
+
 final BoardDescriptor easyEcgDescriptor = BoardDescriptor(
   id: 'easyecg',
   displayName: 'easyECG Breakout',
@@ -25,6 +30,7 @@ final BoardDescriptor easyEcgDescriptor = BoardDescriptor(
       kind: ChannelKind.ecg,
       displayMin: -2048,
       displayMax: 2047,
+      countsPerMv: _countsPerMv,
     ),
     ChannelSpec(
       id: 'ecg_unfiltered',
@@ -35,6 +41,7 @@ final BoardDescriptor easyEcgDescriptor = BoardDescriptor(
       displayMin: -2048,
       displayMax: 2047,
       optional: true,
+      countsPerMv: _countsPerMv,
     ),
   ],
   packets: [

@@ -16,6 +16,10 @@ class ChannelSpec {
   /// diagnostic traces; the channel is still buffered and recorded.
   final bool optional;
 
+  /// ADC counts per millivolt at the electrodes. When set, the live view draws
+  /// this channel on an ECG paper grid by default instead of auto-fitting it.
+  final double? countsPerMv;
+
   const ChannelSpec({
     required this.id,
     required this.label,
@@ -26,6 +30,7 @@ class ChannelSpec {
     this.displayMax = 1,
     this.defaultFilters = const [],
     this.optional = false,
+    this.countsPerMv,
   });
 }
 

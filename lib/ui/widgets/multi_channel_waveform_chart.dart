@@ -10,6 +10,7 @@ import '../../boards/channel_spec.dart';
 import '../../controllers/channel_controller.dart';
 import '../../data/channel_buffer.dart';
 import '../../theme/signal_colors.dart';
+import 'ecg_paper.dart';
 
 /// Multi-channel waveform chart (Phase 2.B).
 ///
@@ -98,6 +99,8 @@ class _MultiChannelWaveformChartState extends State<MultiChannelWaveformChart>
                         controller: controller,
                         color: _traceColor(spec.kind, signals),
                         gridColor: signals.gridLine,
+                        paperGridColor: signals.ecgGrid,
+                        warnColor: signals.qualityWarn,
                         labelColor: signals.axisLabel,
                         cursorColor: signals.cursor,
                         frameTick: _frameTick,
@@ -145,6 +148,8 @@ class _WaveformStrip extends StatelessWidget {
   final ChannelController controller;
   final Color color;
   final Color gridColor;
+  final Color paperGridColor;
+  final Color warnColor;
   final Color labelColor;
   final Color cursorColor;
   final int frameTick;
@@ -155,6 +160,8 @@ class _WaveformStrip extends StatelessWidget {
     required this.controller,
     required this.color,
     required this.gridColor,
+    required this.paperGridColor,
+    required this.warnColor,
     required this.labelColor,
     required this.cursorColor,
     required this.frameTick,
@@ -169,6 +176,11 @@ class _WaveformStrip extends StatelessWidget {
     final visibleSamples = controller.visibleSamples(spec);
     final sweep = controller.sweepMode == SweepMode.sweep && !paused;
     final endingAt = controller.endingSampleIndex(spec);
+    final countsPerMv = spec.countsPerMv;
+    final paperMode =
+        countsPerMv != null && controller.strip(spec.id).yMode == YMode.paper;
+    final largeBoxMv =
+        EcgPaper.largeBoxMvAtUnityGain / controller.paperGain;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -193,9 +205,15 @@ class _WaveformStrip extends StatelessWidget {
                           sweepMode: sweep,
                           color: color,
                           gridColor: gridColor,
+                          paperGridColor: paperGridColor,
+                          warnColor: warnColor,
                           cursorColor: cursorColor,
                           cursorNormalizedX: cursorNormalizedX,
                           stripState: controller.strip(spec.id),
+                          sampleRateHz: spec.sampleRateHz,
+                          countsPerMv: countsPerMv,
+                          paperGain: controller.paperGain,
+                          offScaleStyle: theme.textTheme.labelSmall,
                           frameTick: frameTick,
                         ),
                       ),
@@ -221,8 +239,19 @@ class _WaveformStrip extends StatelessWidget {
                       endingSampleIndex: endingAt,
                       cursorNormalizedX: cursorNormalizedX,
                       color: labelColor,
+                      countsPerMv: paperMode ? countsPerMv : null,
                     ),
                   ),
+                  if (paperMode)
+                    Positioned(
+                      bottom: 6,
+                      left: 8,
+                      child: _LabelBadge(
+                        text: 'Nominal scale · large box '
+                            '${EcgPaper.largeBoxSec} s, $largeBoxMv mV',
+                        color: paperGridColor,
+                      ),
+                    ),
                 ],
               ),
       ),
@@ -237,9 +266,15 @@ class _WaveformPainter extends CustomPainter {
   final bool sweepMode;
   final Color color;
   final Color gridColor;
+  final Color paperGridColor;
+  final Color warnColor;
   final Color cursorColor;
   final double? cursorNormalizedX;
   final StripState stripState;
+  final double sampleRateHz;
+  final double? countsPerMv;
+  final double paperGain;
+  final TextStyle? offScaleStyle;
   final int frameTick;
 
   // Reused scratch buffers keyed by sample count.
@@ -252,9 +287,15 @@ class _WaveformPainter extends CustomPainter {
     required this.sweepMode,
     required this.color,
     required this.gridColor,
+    required this.paperGridColor,
+    required this.warnColor,
     required this.cursorColor,
     required this.cursorNormalizedX,
     required this.stripState,
+    required this.sampleRateHz,
+    required this.countsPerMv,
+    required this.paperGain,
+    required this.offScaleStyle,
     required this.frameTick,
   });
 
@@ -268,25 +309,42 @@ class _WaveformPainter extends CustomPainter {
     final valid = buffer.copyWindow(samples, visibleSamples,
         endingAt: endingSampleIndex);
 
+    final cpm = countsPerMv;
+    final paper = stripState.yMode == YMode.paper && cpm != null
+        ? EcgPaper(
+            pxPerSec: size.width * sampleRateHz / (visibleSamples - 1),
+            countsPerMv: cpm,
+            gain: paperGain,
+          )
+        : null;
+
     // Grid
-    final gridPaint = Paint()
-      ..color = gridColor
-      ..strokeWidth = 1;
-    final mid = size.height / 2;
-    canvas.drawLine(Offset(0, mid), Offset(size.width, mid), gridPaint);
-    final faint = Paint()
-      ..color = gridColor.withValues(alpha: 0.4)
-      ..strokeWidth = 1;
-    for (int g = 1; g < 5; g++) {
-      final x = size.width * g / 5;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), faint);
+    if (paper != null) {
+      _paintPaperGrid(canvas, size, paper);
+    } else {
+      final gridPaint = Paint()
+        ..color = gridColor
+        ..strokeWidth = 1;
+      final mid = size.height / 2;
+      canvas.drawLine(Offset(0, mid), Offset(size.width, mid), gridPaint);
+      final faint = Paint()
+        ..color = gridColor.withValues(alpha: 0.4)
+        ..strokeWidth = 1;
+      for (int g = 1; g < 5; g++) {
+        final x = size.width * g / 5;
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), faint);
+      }
     }
 
     if (valid < 2) return;
 
     // Determine Y range.
     double minV, maxV;
-    if (stripState.yMode == YMode.manual &&
+    if (paper != null) {
+      final baseline = EcgPaper.baselineOf(samples);
+      minV = paper.minValue(baseline, size.height);
+      maxV = paper.maxValue(baseline, size.height);
+    } else if (stripState.yMode == YMode.manual &&
         stripState.yMin != null &&
         stripState.yMax != null) {
       minV = stripState.yMin!;
@@ -361,6 +419,8 @@ class _WaveformPainter extends CustomPainter {
     }
     canvas.drawPath(path, tracePaint);
 
+    if (paper != null) _paintOffScale(canvas, size, samples, minV, maxV);
+
     // Sweep head indicator
     if (sweepMode) {
       final head = endingSampleIndex % visibleSamples;
@@ -380,6 +440,74 @@ class _WaveformPainter extends CustomPainter {
         ..strokeWidth = 1;
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), cursorPaint);
     }
+  }
+
+  /// Square boxes measured out from the centre line, which the baseline sits on.
+  void _paintPaperGrid(Canvas canvas, Size size, EcgPaper paper) {
+    // Below this the small boxes blur into a solid tint.
+    const minSmallBoxPx = 4.0;
+    final showSmall = paper.smallBoxPx >= minSmallBoxPx;
+    final step = showSmall ? paper.smallBoxPx : paper.largeBoxPx;
+    final stepsPerLarge = showSmall ? EcgPaper.smallBoxesPerLarge : 1;
+    final small = Paint()
+      ..color = paperGridColor.withValues(alpha: 0.35)
+      ..strokeWidth = 1;
+    // Without small boxes between them, full-strength lines overpower the trace.
+    final large = Paint()
+      ..color = paperGridColor.withValues(alpha: showSmall ? 1 : 0.5)
+      ..strokeWidth = 1;
+
+    // Lines between pixels anti-alias to a dimmer, greyer colour, which makes
+    // boxes that should match look uneven. Snap them to the pixel grid.
+    double snap(double v) => v.floorToDouble() + 0.5;
+
+    for (int i = 0; i * step <= size.width; i++) {
+      final x = snap(i * step);
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height),
+          i % stepsPerLarge == 0 ? large : small);
+    }
+    final mid = size.height / 2;
+    for (int i = 0; i * step <= mid; i++) {
+      final paint = i % stepsPerLarge == 0 ? large : small;
+      final dy = i * step;
+      final above = snap(mid - dy);
+      final below = snap(mid + dy);
+      canvas.drawLine(Offset(0, above), Offset(size.width, above), paint);
+      canvas.drawLine(Offset(0, below), Offset(size.width, below), paint);
+    }
+  }
+
+  /// With a fixed scale the trace can leave the strip, so mark the edge it
+  /// crossed and say what to do about it.
+  void _paintOffScale(
+      Canvas canvas, Size size, Float64List samples, double minV, double maxV) {
+    var over = false;
+    var under = false;
+    for (final v in samples) {
+      if (v > maxV) over = true;
+      if (v < minV) under = true;
+    }
+    if (!over && !under) return;
+
+    const barHeight = 3.0;
+    final bar = Paint()..color = warnColor;
+    if (over) {
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, barHeight), bar);
+    }
+    if (under) {
+      canvas.drawRect(
+          Rect.fromLTWH(0, size.height - barHeight, size.width, barHeight), bar);
+    }
+    final text = TextPainter(
+      text: TextSpan(
+        text: 'Off scale: lower the gain or switch to Auto',
+        style: offScaleStyle?.copyWith(color: warnColor),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    text.paint(canvas,
+        Offset(size.width - text.width - 8, size.height - text.height - 8));
+    text.dispose();
   }
 
   @override
@@ -430,12 +558,16 @@ class _ValueBadge extends StatelessWidget {
   final double? cursorNormalizedX;
   final Color color;
 
+  /// When set, the value is shown in mV rather than raw counts.
+  final double? countsPerMv;
+
   const _ValueBadge({
     required this.buffer,
     required this.visibleSamples,
     required this.endingSampleIndex,
     required this.cursorNormalizedX,
     required this.color,
+    this.countsPerMv,
   });
 
   @override
@@ -450,11 +582,14 @@ class _ValueBadge extends StatelessWidget {
     } else {
       value = scratch[visibleSamples - 1];
     }
+    final cpm = countsPerMv;
     final text = value.isNaN
         ? '—'
-        : (value.abs() >= 1e6
-            ? value.toStringAsExponential(2)
-            : value.toStringAsFixed(1));
+        : cpm != null
+            ? '${(value / cpm).toStringAsFixed(2)} mV'
+            : (value.abs() >= 1e6
+                ? value.toStringAsExponential(2)
+                : value.toStringAsFixed(1));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(

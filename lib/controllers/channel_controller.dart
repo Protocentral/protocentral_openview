@@ -13,6 +13,9 @@ enum YMode {
 
   /// User-fixed min/max.
   manual,
+
+  /// Fixed mV scale on an ECG paper grid. Needs [ChannelSpec.countsPerMv].
+  paper,
 }
 
 /// Trace direction / rendering mode for the whole chart.
@@ -52,7 +55,10 @@ class ChannelController extends ChangeNotifier {
 
   ChannelController({required this.channels, required this.buffers}) {
     for (final c in channels) {
-      _strips[c.id] = StripState(visible: !c.optional);
+      _strips[c.id] = StripState(
+        visible: !c.optional,
+        yMode: c.countsPerMv != null ? YMode.paper : YMode.auto,
+      );
     }
   }
 
@@ -170,6 +176,34 @@ class ChannelController extends ChangeNotifier {
     s.yMode = YMode.manual;
     s.yMin = min;
     s.yMax = max;
+    notifyListeners();
+  }
+
+  // ---- ECG paper scale ----
+  //
+  // Shared by every channel with a known mV scale, so traces stay comparable.
+
+  static const paperGains = <double>[0.5, 1, 2];
+
+  bool get hasPaperScale => channels.any((c) => c.countsPerMv != null);
+
+  bool get paperMode => channels.any(
+      (c) => c.countsPerMv != null && strip(c.id).yMode == YMode.paper);
+
+  set paperMode(bool on) {
+    for (final c in channels) {
+      if (c.countsPerMv != null) {
+        strip(c.id).yMode = on ? YMode.paper : YMode.auto;
+      }
+    }
+    notifyListeners();
+  }
+
+  double _paperGain = 1;
+  double get paperGain => _paperGain;
+  set paperGain(double v) {
+    if (v == _paperGain) return;
+    _paperGain = v;
     notifyListeners();
   }
 

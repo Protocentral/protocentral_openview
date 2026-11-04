@@ -18,6 +18,7 @@ import '../widgets/colormap.dart';
 import '../widgets/heatmap_view.dart';
 import '../widgets/metrics_panel.dart';
 import '../widgets/multi_channel_waveform_chart.dart';
+import '../widgets/paper_scale_controls.dart';
 
 class LiveScreen extends StatefulWidget {
   const LiveScreen({super.key});
@@ -486,6 +487,7 @@ class _Controls extends StatelessWidget {
               showSelectedIcon: false,
             ),
             _WindowMenu(chart: chart),
+            if (chart.hasPaperScale) PaperScaleControls(chart: chart),
             for (final c in chart.channels)
               if (c.optional)
                 FilterChip(
