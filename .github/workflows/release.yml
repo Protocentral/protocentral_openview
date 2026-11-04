@@ -231,8 +231,8 @@ jobs:
   # for it already exist in this repo.
   #
   # Built as a universal binary (x86_64 + arm64) so a single download runs on
-  # both Intel and Apple Silicon Macs. The deployment target is 10.15, so Intel
-  # support reaches back to Catalina.
+  # both Intel and Apple Silicon Macs. The deployment target is 12.0, so Intel
+  # support reaches back to Monterey.
   macos:
     name: macOS universal
     needs: version
