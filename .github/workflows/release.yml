@@ -322,6 +322,9 @@ jobs:
         with:
           generate_release_notes: true
           fail_on_unmatched_files: true
+          # A tag like v3.4.0-rc1 must stay out of /releases/latest, which is
+          # what the in-app update check reads.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             release/OpenView-linux-x64.zip
             release/OpenView-linux-arm64.zip
