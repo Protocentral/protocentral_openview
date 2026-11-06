@@ -4,6 +4,7 @@
 import 'dart:typed_data';
 
 import 'package:OpenView/boards/board_registry.dart';
+import 'package:OpenView/boards/packet_spec.dart';
 import 'package:OpenView/controllers/channel_controller.dart';
 import 'package:OpenView/theme/signal_colors.dart';
 import 'package:OpenView/ui/widgets/metrics_panel.dart';
@@ -18,6 +19,7 @@ Future<void> _pump(
   required String boardId,
   required ValueGetter<Map<String, num>> read,
   double width = 1200,
+  ValueChanged<CommandSpec>? onCommand,
 }) async {
   tester.view.physicalSize = Size(width, 700);
   tester.view.devicePixelRatio = 1;
@@ -28,6 +30,7 @@ Future<void> _pump(
       body: MetricsLayout(
         metrics: BoardRegistry.byId(boardId)!.metrics,
         read: read,
+        onCommand: onCommand,
         child: const SizedBox.expand(key: _chartKey),
       ),
     ),
@@ -113,6 +116,47 @@ void main() {
     expect(find.text('Effort (MVC)'), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
     expect(find.text('%'), findsOneWidget);
+  });
+
+  group('easyEMG MVC', () {
+    testWidgets('flags effort above 100% in the warning colour',
+        (tester) async {
+      await _pump(tester,
+          boardId: 'easyemg', read: () => {'percentMvc': 340, 'mvcStep': 4});
+
+      expect(find.text('340'), findsOneWidget);
+      expect(find.text('Above your MVC: record it again'), findsOneWidget);
+      expect(_colorOf(tester, '340'), SignalColors.light.qualityWarn);
+    });
+
+    testWidgets('100% is not flagged', (tester) async {
+      await _pump(tester,
+          boardId: 'easyemg', read: () => {'percentMvc': 100, 'mvcStep': 4});
+
+      expect(find.text('Above your MVC: record it again'), findsNothing);
+      expect(_colorOf(tester, '100'), SignalColors.light.eeg);
+    });
+
+    testWidgets('shows the step and sends Record MVC', (tester) async {
+      final sent = <CommandSpec>[];
+      await _pump(tester,
+          boardId: 'easyemg',
+          read: () => {'percentMvc': 0, 'mvcStep': 2},
+          onCommand: sent.add);
+
+      expect(find.text('Contract hard now'), findsOneWidget);
+      await tester.tap(find.text('Record MVC'));
+      expect(sent.single.bytes, [0x6D]);
+    });
+
+    testWidgets('hides Record MVC when commands can\'t be sent',
+        (tester) async {
+      await _pump(tester,
+          boardId: 'easyemg', read: () => {'percentMvc': 0, 'mvcStep': 0});
+
+      expect(find.text('Not recorded'), findsOneWidget);
+      expect(find.text('Record MVC'), findsNothing);
+    });
   });
 
   group('layout', () {

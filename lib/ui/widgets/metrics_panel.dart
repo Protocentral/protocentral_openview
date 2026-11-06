@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../boards/metric_spec.dart';
+import '../../boards/packet_spec.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/signal_colors.dart';
 
@@ -22,12 +23,16 @@ class MetricsLayout extends StatelessWidget {
 
   /// Returns the current events; empty when there is no live reading.
   final ValueGetter<Map<String, num>> read;
+
+  /// Sends a readout's [MetricSpec.action]. Without it, actions aren't shown.
+  final ValueChanged<CommandSpec>? onCommand;
   final Widget child;
 
   const MetricsLayout({
     super.key,
     required this.metrics,
     required this.read,
+    this.onCommand,
     required this.child,
   });
 
@@ -39,6 +44,7 @@ class MetricsLayout extends StatelessWidget {
         final panel = _MetricsPanel(
           metrics: metrics,
           read: read,
+          onCommand: onCommand,
           width: constraints.maxWidth,
           vertical: constraints.maxWidth >= sideBySideMinWidth,
         );
@@ -68,12 +74,14 @@ class MetricsLayout extends StatelessWidget {
 class _MetricsPanel extends StatefulWidget {
   final List<MetricSpec> metrics;
   final ValueGetter<Map<String, num>> read;
+  final ValueChanged<CommandSpec>? onCommand;
   final double width;
   final bool vertical;
 
   const _MetricsPanel({
     required this.metrics,
     required this.read,
+    required this.onCommand,
     required this.width,
     required this.vertical,
   });
@@ -114,7 +122,12 @@ class _MetricsPanelState extends State<_MetricsPanel> {
   Widget build(BuildContext context) {
     final tiles = [
       for (final m in widget.metrics)
-        _MetricTile(spec: m, values: _values, compact: !widget.vertical),
+        _MetricTile(
+          spec: m,
+          values: _values,
+          compact: !widget.vertical,
+          onCommand: widget.onCommand,
+        ),
     ];
     if (widget.vertical) {
       return Padding(
@@ -160,11 +173,13 @@ class _MetricTile extends StatelessWidget {
   final MetricSpec spec;
   final Map<String, num> values;
   final bool compact;
+  final ValueChanged<CommandSpec>? onCommand;
 
   const _MetricTile({
     required this.spec,
     required this.values,
     required this.compact,
+    required this.onCommand,
   });
 
   @override
@@ -195,9 +210,36 @@ class _MetricTile extends StatelessWidget {
             _value(theme, signals)
           else
             _state(theme, signals),
+          if (_aboveWarning)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                spec.warnAboveText ?? 'Higher than expected',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: signals.qualityWarn),
+              ),
+            ),
+          if (spec.action != null && onCommand != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: OutlinedButton(
+                onPressed: () => onCommand!(spec.action!),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: Text(spec.action!.label),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  /// The reading is above [MetricSpec.warnAbove].
+  bool get _aboveWarning {
+    final limit = spec.warnAbove;
+    final raw = values[spec.eventKey];
+    return limit != null && raw != null && raw > limit;
   }
 
   Widget _value(ThemeData theme, SignalColors signals) {
@@ -220,7 +262,8 @@ class _MetricTile extends StatelessWidget {
         MetricKind.effort => signals.eeg,
         MetricKind.signalStatus => scheme.onSurface,
       };
-      color = suspect ? base.withValues(alpha: 0.4) : base;
+      final shown = _aboveWarning ? signals.qualityWarn : base;
+      color = suspect ? shown.withValues(alpha: 0.4) : shown;
     }
 
     return Semantics(

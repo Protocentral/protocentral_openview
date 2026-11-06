@@ -152,6 +152,7 @@ class _LiveScreenState extends State<LiveScreen> {
         child: MetricsLayout(
           metrics: descriptor.metrics,
           read: () => conn.freshEvents,
+          onCommand: conn.sendCommand,
           child:
               MultiChannelWaveformChart(controller: chart, refreshHz: repaintHz),
         ),

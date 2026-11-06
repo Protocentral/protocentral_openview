@@ -81,7 +81,21 @@ void main() {
           closeTo(-2048 * easyEmgMicrovoltsPerCount, 1e-9));
       expect(d.channelSamples['emg_envelope']!.single,
           closeTo(2048 * easyEmgMicrovoltsPerCount, 1e-9));
-      expect(d.events, {'percentMvc': 85});
+      expect(d.events, {'percentMvc': 85, 'mvcStep': 0});
+    });
+
+    test('reads the MVC step from byte 6', () {
+      final p = _payload(0, 0, 0, 0);
+      p[6] = 2; // contract now
+      expect(decodeEasyEmgPkt2(p).events['mvcStep'], 2);
+    });
+
+    test('Record MVC sends the sketch its m command', () {
+      final board = BoardRegistry.byId('easyemg')!;
+      final mvc = board.metrics.firstWhere((m) => m.eventKey == 'mvcStep');
+
+      expect(mvc.action?.bytes, [0x6D]);
+      expect(mvc.states.keys, containsAll([0, 1, 2, 3, 4]));
     });
 
     test('a frame from the sketch reaches both channels', () {

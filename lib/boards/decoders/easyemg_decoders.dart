@@ -24,7 +24,9 @@ const double easyEmgMicrovoltsPerCount = 0.256 / 2048 * 1e6 / 51.7;
 ///   [0-1]  sEMG          int16 LE (counts, +/-2048)
 ///   [2-3]  RMS envelope  int16 LE (counts, 0..2048)
 ///   [4-5]  %MVC          int16 LE (0 until an MVC has been recorded)
-///   [6-7]  Reserved      always 0
+///   [6]    MVC step      0 none, 1 relax, 2 contract, 3 too weak, 4 set
+///                        (library 1.1.0; always 0 from 1.0.0)
+///   [7]    Reserved      always 0
 ///
 /// sEMG and the envelope are scaled by [easyEmgMicrovoltsPerCount], about
 /// 2.42 µV per count; %MVC is passed through.
@@ -37,6 +39,7 @@ DecodedPacket decodeEasyEmgPkt2(Uint8List p) {
     },
     events: {
       'percentMvc': Codec.readInt16LE(p, 4),
+      'mvcStep': p[6],
     },
   );
 }

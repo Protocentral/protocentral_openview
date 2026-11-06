@@ -56,6 +56,30 @@ final BoardDescriptor easyEmgDescriptor = BoardDescriptor(
       label: 'Effort (MVC)',
       kind: MetricKind.effort,
       unit: '%',
+      // Over 100% means the MVC came from a weak contraction. Library 1.1.0
+      // refuses weak ones and raises the MVC on a stronger contraction, so
+      // this shows only with older firmware or MVC_AUTO_RAISE off.
+      warnAbove: 100,
+      warnAboveText: 'Above your MVC: record it again',
+    ),
+    MetricSpec(
+      eventKey: 'mvcStep',
+      label: 'MVC',
+      kind: MetricKind.signalStatus,
+      states: {
+        0: MetricState('Not recorded', MetricSeverity.warning),
+        1: MetricState('Relax…', MetricSeverity.warning),
+        2: MetricState('Contract hard now', MetricSeverity.warning),
+        3: MetricState('Too weak: try again', MetricSeverity.error),
+        4: MetricState('Recorded', MetricSeverity.ok),
+      },
+      // 'm' makes the 06.OpenView sketch run its MVC step again: 2 s relaxed,
+      // then 5 s of the hardest contraction you can hold.
+      action: CommandSpec(
+        id: 'easyemg_record_mvc',
+        label: 'Record MVC',
+        bytes: [0x6D],
+      ),
     ),
   ],
   notes: 'ProtoCentral easyEMG surface EMG breakout (Qwiic), streamed through '
@@ -63,7 +87,8 @@ final BoardDescriptor easyEmgDescriptor = BoardDescriptor(
       'at the electrodes on a fixed scale. The sketch filters before sending: '
       'a 20 Hz high-pass and a notch on every mains harmonic up to 450 Hz '
       '(library 1.1.0 or later). Power the host from a battery when the '
-      'electrodes are on a person. %MVC stays 0 until the sketch has recorded '
-      'a maximum contraction, which runs for 5 seconds while the on-board LED '
-      'is lit after reset.',
+      'electrodes are on a person. %MVC stays 0 until a maximum contraction '
+      '(MVC) is recorded: after reset, or with Record MVC, relax for 2 s, then '
+      'contract as hard as you can for 5 s while the board LED is lit. The MVC '
+      'tile shows each step (library 1.1.0 or later).',
 );

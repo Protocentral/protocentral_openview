@@ -1,6 +1,8 @@
 // Copyright (c) 2024-2026 protocentral
 // SPDX-License-Identifier: MIT
 
+import 'packet_spec.dart';
+
 /// Describes a scalar event the live view shows as a large readout beside the
 /// chart, instead of a plain `key: value` chip in the header.
 ///
@@ -24,6 +26,14 @@ class MetricSpec {
   /// matching state rather than a number.
   final Map<int, MetricState> states;
 
+  /// A reading above this is suspect: the readout turns to the warning colour
+  /// and shows [warnAboveText] under the value.
+  final num? warnAbove;
+  final String? warnAboveText;
+
+  /// A command the readout offers as a button, such as easyEMG's Record MVC.
+  final CommandSpec? action;
+
   const MetricSpec({
     required this.eventKey,
     required this.label,
@@ -33,6 +43,9 @@ class MetricSpec {
     this.zeroMeansNoData = false,
     this.qualityEventKey,
     this.states = const {},
+    this.warnAbove,
+    this.warnAboveText,
+    this.action,
   });
 }
 
