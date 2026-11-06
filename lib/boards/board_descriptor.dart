@@ -3,6 +3,7 @@
 
 import 'channel_spec.dart';
 import 'matrix_spec.dart';
+import 'metric_spec.dart';
 import 'packet_spec.dart';
 import 'transport_profile.dart';
 
@@ -21,6 +22,7 @@ class BoardDescriptor {
   final List<MatrixSpec> matrices;
   final List<PacketSpec> packets;
   final List<CommandSpec> commands;
+  final List<MetricSpec> metrics;
   final String notes;
 
   const BoardDescriptor({
@@ -34,6 +36,7 @@ class BoardDescriptor {
     this.matrices = const [],
     this.packets = const [],
     this.commands = const [],
+    this.metrics = const [],
     this.notes = '',
   });
 

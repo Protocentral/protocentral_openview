@@ -4,6 +4,7 @@
 import '../board_descriptor.dart';
 import '../channel_spec.dart';
 import '../decoders/sensything_ox_decoders.dart';
+import '../metric_spec.dart';
 import '../packet_spec.dart';
 import '../transport_profile.dart';
 
@@ -53,6 +54,7 @@ final BoardDescriptor sensythingOxDescriptor = BoardDescriptor(
       decode: decodeSensythingOxPkt2,
     ),
   ],
+  metrics: const [heartRateMetric, spo2Metric],
   notes: 'AFE4400-based pulse oximeter. BLE streams 8-byte samples: '
       'IR, Red, SpO2, HR (4 × int16 LE).',
 );

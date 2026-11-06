@@ -4,6 +4,7 @@
 import '../board_descriptor.dart';
 import '../channel_spec.dart';
 import '../decoders/healthypi_decoders.dart';
+import '../metric_spec.dart';
 import '../packet_spec.dart';
 import '../transport_profile.dart';
 
@@ -159,6 +160,12 @@ final BoardDescriptor healthypiDescriptor = BoardDescriptor(
         pktType: hpiBlePktRespRate,
         label: 'BLE RespRate',
         decode: decodeHealthypiBleRespRate),
+  ],
+  metrics: const [
+    heartRateMetric,
+    spo2Metric,
+    respRateMetric,
+    temperatureMetric,
   ],
   notes: 'HealthyPi 5 — nRF5340 MCU, ADS1293 ECG/BioZ, MAX30101 PPG. USB: '
       'combined packet 0x02, or firmware v1.0.0+ batch packets 0x03 (ECG+Resp) '

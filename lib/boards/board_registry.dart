@@ -5,6 +5,8 @@ import 'board_descriptor.dart';
 import 'descriptors/ads1292r.dart';
 import 'descriptors/ads1293.dart';
 import 'descriptors/afe4490.dart';
+import 'descriptors/easyecg.dart';
+import 'descriptors/easyemg.dart';
 import 'descriptors/healthypi.dart';
 import 'descriptors/max30001.dart';
 import 'descriptors/max30003.dart';
@@ -35,6 +37,8 @@ class BoardRegistry {
     max86150Descriptor,
     pulseExpressDescriptor,
     tinyGsrDescriptor,
+    easyEcgDescriptor,
+    easyEmgDescriptor,
     st1vafe3bxDescriptor,
     tmf8829Descriptor,
   ];

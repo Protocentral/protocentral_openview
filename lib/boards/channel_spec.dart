@@ -12,6 +12,20 @@ class ChannelSpec {
   final double displayMax;
   final List<FilterPreset> defaultFilters;
 
+  /// Starts hidden in the live view, with a toggle to show it. Mainly for
+  /// diagnostic traces; the channel is still buffered and recorded.
+  final bool optional;
+
+  /// ADC counts per millivolt at the electrodes. When set, the live view draws
+  /// this channel on an ECG paper grid by default instead of auto-fitting it.
+  final double? countsPerMv;
+
+  /// Starts the live view on a fixed Y range of [displayMin]..[displayMax]
+  /// instead of auto-fitting it. Use it for signals whose size is the point,
+  /// such as sEMG: auto-fit stretches a resting trace to the same height as a
+  /// contraction, so the two look alike.
+  final bool fixedRange;
+
   const ChannelSpec({
     required this.id,
     required this.label,
@@ -21,6 +35,9 @@ class ChannelSpec {
     this.displayMin = -1,
     this.displayMax = 1,
     this.defaultFilters = const [],
+    this.optional = false,
+    this.countsPerMv,
+    this.fixedRange = false,
   });
 }
 
@@ -47,6 +64,7 @@ enum ChannelKind {
   gsr,
   imu,
   eeg,
+  emg,
   capacitance,
   derived,
   unknown,

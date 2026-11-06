@@ -1,12 +1,15 @@
 // Copyright (c) 2024-2026 protocentral
 // SPDX-License-Identifier: MIT
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../boards/board_descriptor.dart';
 import '../../boards/matrix_spec.dart';
 import '../../boards/packet_spec.dart';
+import '../../controllers/app_info_controller.dart';
 import '../../controllers/channel_controller.dart';
 import '../../controllers/connection_controller.dart';
 import '../../controllers/recording_controller.dart';
@@ -16,7 +19,10 @@ import '../../recording/recording_models.dart';
 import '../../theme/app_spacing.dart';
 import '../widgets/colormap.dart';
 import '../widgets/heatmap_view.dart';
+import '../widgets/metrics_panel.dart';
 import '../widgets/multi_channel_waveform_chart.dart';
+import '../widgets/paper_scale_controls.dart';
+import '../widgets/stream_diagnostics_panel.dart';
 
 class LiveScreen extends StatefulWidget {
   const LiveScreen({super.key});
@@ -37,6 +43,8 @@ class _LiveScreenState extends State<LiveScreen> {
   /// Currently selected board command id (TMF8829: a grid-mode CommandSpec).
   /// Persists for the lifetime of the screen state.
   String? _selectedCommandId;
+
+  bool _showPerformance = false;
 
   ChannelController? _ensureChart(ConnectionController conn) {
     final desc = conn.descriptor!;
@@ -119,10 +127,35 @@ class _LiveScreenState extends State<LiveScreen> {
     // Build the main body: chart on top (if present), heatmap(s) below.
     final bodyChildren = <Widget>[];
     if (chart != null) {
-      bodyChildren.add(_Controls(chart: chart));
+      bodyChildren.add(_Controls(
+        chart: chart,
+        showPerformance: _showPerformance,
+        onShowPerformance: (v) => setState(() => _showPerformance = v),
+      ));
       bodyChildren.add(const SizedBox(height: AppSpacing.sm));
+      if (_showPerformance) {
+        bodyChildren.add(StreamDiagnosticsPanel(
+          frameBudget: Duration(microseconds: 1000000 ~/ repaintHz),
+          attachChunks: (onChunk) => conn.onChunk = onChunk,
+          describeSetup: () => [
+            context.read<AppInfoController>().fullVersionString,
+            '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+            '${descriptor.displayName} over '
+                '${conn.transportKind?.name ?? 'unknown'}',
+            'Repaint cap $repaintHz Hz, ${chart.window.inSeconds} s window, '
+                '${chart.sweepMode.name}',
+          ].join('\n'),
+        ));
+        bodyChildren.add(const SizedBox(height: AppSpacing.sm));
+      }
       bodyChildren.add(Expanded(
-        child: MultiChannelWaveformChart(controller: chart, refreshHz: repaintHz),
+        child: MetricsLayout(
+          metrics: descriptor.metrics,
+          read: () => conn.freshEvents,
+          onCommand: conn.sendCommand,
+          child:
+              MultiChannelWaveformChart(controller: chart, refreshHz: repaintHz),
+        ),
       ));
       bodyChildren.add(AnimatedBuilder(
         animation: chart,
@@ -397,6 +430,11 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final descriptor = conn.descriptor!;
+    // Events with their own readout beside the chart don't repeat as chips.
+    final readoutKeys = descriptor.metrics.map((m) => m.eventKey).toSet();
+    final chipEvents = conn.latestEvents.entries
+        .where((e) => !readoutKeys.contains(e.key))
+        .toList();
     return Row(
       children: [
         Expanded(
@@ -414,10 +452,10 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        if (conn.latestEvents.isNotEmpty) ...[
+        if (chipEvents.isNotEmpty) ...[
           Wrap(
             spacing: AppSpacing.xs,
-            children: conn.latestEvents.entries
+            children: chipEvents
                 .map((e) => Chip(
                       visualDensity: VisualDensity.compact,
                       label: Text('${e.key}: ${e.value}'),
@@ -440,7 +478,13 @@ class _Header extends StatelessWidget {
 
 class _Controls extends StatelessWidget {
   final ChannelController chart;
-  const _Controls({required this.chart});
+  final bool showPerformance;
+  final ValueChanged<bool> onShowPerformance;
+  const _Controls({
+    required this.chart,
+    required this.showPerformance,
+    required this.onShowPerformance,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -475,6 +519,20 @@ class _Controls extends StatelessWidget {
               showSelectedIcon: false,
             ),
             _WindowMenu(chart: chart),
+            if (chart.hasPaperScale) PaperScaleControls(chart: chart),
+            for (final c in chart.channels)
+              if (c.optional)
+                FilterChip(
+                  label: Text(c.label),
+                  selected: chart.strip(c.id).visible,
+                  onSelected: (v) => chart.setVisible(c.id, v),
+                ),
+            FilterChip(
+              avatar: const Icon(Icons.speed, size: 18),
+              label: const Text('Performance'),
+              selected: showPerformance,
+              onSelected: onShowPerformance,
+            ),
           ],
         );
       },

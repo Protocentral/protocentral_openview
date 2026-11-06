@@ -4,6 +4,7 @@
 import '../board_descriptor.dart';
 import '../channel_spec.dart';
 import '../decoders/afe4490_decoders.dart';
+import '../metric_spec.dart';
 import '../packet_spec.dart';
 import '../transport_profile.dart';
 
@@ -39,6 +40,7 @@ final BoardDescriptor afe4490Descriptor = BoardDescriptor(
       decode: decodeAfe4490Pkt2,
     ),
   ],
+  metrics: const [heartRateMetric, spo2Metric],
   notes: 'TI AFE4490 22-bit dual-LED pulse-oximetry front-end. '
       'Accepts standard Nellcor-compatible DB9 SpO2 finger probe. '
       'SpO2 and heart rate computed on-device.',

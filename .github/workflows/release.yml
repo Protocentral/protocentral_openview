@@ -231,8 +231,8 @@ jobs:
   # for it already exist in this repo.
   #
   # Built as a universal binary (x86_64 + arm64) so a single download runs on
-  # both Intel and Apple Silicon Macs. The deployment target is 10.15, so Intel
-  # support reaches back to Catalina.
+  # both Intel and Apple Silicon Macs. The deployment target is 12.0, so Intel
+  # support reaches back to Monterey.
   macos:
     name: macOS universal
     needs: version
@@ -331,6 +331,9 @@ jobs:
         with:
           generate_release_notes: true
           fail_on_unmatched_files: true
+          # A tag like v3.4.0-rc1 must stay out of /releases/latest, which is
+          # what the in-app update check reads.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             release/OpenView-linux-x64.zip
             release/OpenView-linux-arm64.zip
