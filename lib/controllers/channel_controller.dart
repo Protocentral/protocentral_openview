@@ -55,10 +55,18 @@ class ChannelController extends ChangeNotifier {
 
   ChannelController({required this.channels, required this.buffers}) {
     for (final c in channels) {
-      _strips[c.id] = StripState(
-        visible: !c.optional,
-        yMode: c.countsPerMv != null ? YMode.paper : YMode.auto,
-      );
+      if (c.countsPerMv != null) {
+        _strips[c.id] = StripState(visible: !c.optional, yMode: YMode.paper);
+      } else if (c.fixedRange) {
+        _strips[c.id] = StripState(
+          visible: !c.optional,
+          yMode: YMode.manual,
+          yMin: c.displayMin,
+          yMax: c.displayMax,
+        );
+      } else {
+        _strips[c.id] = StripState(visible: !c.optional);
+      }
     }
   }
 

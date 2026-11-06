@@ -16,24 +16,30 @@ final BoardDescriptor easyEmgDescriptor = BoardDescriptor(
   usbProfile: const UsbProfile(
     baudRate: 115200,
   ),
+  // Fixed ranges, in µV at the electrodes, so rest and contraction keep their
+  // real proportions on screen. Sized from a bench recording of repeated
+  // forearm flexes: sEMG peaks reached about 2.2 mV and the envelope about
+  // 620 µV, against about 25 µV at rest.
   channels: const [
     ChannelSpec(
       id: 'emg',
-      label: 'sEMG',
+      label: 'sEMG (µV)',
       sampleRateHz: 500,
-      unit: SignalUnit.adc,
+      unit: SignalUnit.uv,
       kind: ChannelKind.emg,
-      displayMin: -2048,
-      displayMax: 2047,
+      displayMin: -2500,
+      displayMax: 2500,
+      fixedRange: true,
     ),
     ChannelSpec(
       id: 'emg_envelope',
-      label: 'RMS envelope',
+      label: 'RMS envelope (µV)',
       sampleRateHz: 500,
-      unit: SignalUnit.adc,
+      unit: SignalUnit.uv,
       kind: ChannelKind.emg,
       displayMin: 0,
-      displayMax: 2048,
+      displayMax: 700,
+      fixedRange: true,
     ),
   ],
   packets: [
@@ -53,7 +59,11 @@ final BoardDescriptor easyEmgDescriptor = BoardDescriptor(
     ),
   ],
   notes: 'ProtoCentral easyEMG surface EMG breakout (Qwiic), streamed through '
-      'a host running the 06.OpenView Arduino example at 500 Hz. %MVC stays 0 '
-      'until the sketch has recorded a maximum contraction, which runs for 5 '
-      'seconds while the on-board LED is lit after reset.',
+      'a host running the 06.OpenView Arduino example at 500 Hz, shown in µV '
+      'at the electrodes on a fixed scale. The sketch filters before sending: '
+      'a 20 Hz high-pass and a notch on every mains harmonic up to 450 Hz '
+      '(library 1.1.0 or later). Power the host from a battery when the '
+      'electrodes are on a person. %MVC stays 0 until the sketch has recorded '
+      'a maximum contraction, which runs for 5 seconds while the on-board LED '
+      'is lit after reset.',
 );

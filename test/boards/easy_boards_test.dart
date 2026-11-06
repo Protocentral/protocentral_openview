@@ -67,12 +67,20 @@ void main() {
   });
 
   group('easyEMG', () {
-    test('decodes sEMG, envelope and %MVC, and ignores the reserved slot', () {
+    test('one count is 2.418 µV at the electrodes', () {
+      // +/-0.256 V over 2048 counts, through the x51.7 front end.
+      expect(easyEmgMicrovoltsPerCount, closeTo(2.4178, 1e-4));
+    });
+
+    test('decodes sEMG and envelope to µV, passes %MVC, ignores the reserved slot',
+        () {
       final d = decodeEasyEmgPkt2(_payload(-2048, 2048, 85, 0));
 
       expect(d.pktType, 2);
-      expect(d.channelSamples['emg'], [-2048.0]);
-      expect(d.channelSamples['emg_envelope'], [2048.0]);
+      expect(d.channelSamples['emg']!.single,
+          closeTo(-2048 * easyEmgMicrovoltsPerCount, 1e-9));
+      expect(d.channelSamples['emg_envelope']!.single,
+          closeTo(2048 * easyEmgMicrovoltsPerCount, 1e-9));
       expect(d.events, {'percentMvc': 85});
     });
 
@@ -84,8 +92,27 @@ void main() {
       );
 
       expect(decoded, hasLength(1));
-      expect(decoded.single.channelSamples['emg'], [-120.0]);
-      expect(decoded.single.channelSamples['emg_envelope'], [40.0]);
+      expect(decoded.single.channelSamples['emg']!.single,
+          closeTo(-120 * easyEmgMicrovoltsPerCount, 1e-9));
+      expect(decoded.single.channelSamples['emg_envelope']!.single,
+          closeTo(40 * easyEmgMicrovoltsPerCount, 1e-9));
+    });
+
+    test('channels are in µV on a fixed range that holds a contraction', () {
+      final board = BoardRegistry.byId('easyemg')!;
+      final emg = board.channels.firstWhere((c) => c.id == 'emg');
+      final env = board.channels.firstWhere((c) => c.id == 'emg_envelope');
+
+      for (final c in board.channels) {
+        expect(c.unit, SignalUnit.uv, reason: c.id);
+        expect(c.fixedRange, isTrue, reason: c.id);
+      }
+      // A bench recording of forearm flexes peaked at 892 counts (2.16 mV)
+      // and its envelope at 257 counts (621 µV).
+      expect(emg.displayMax, greaterThan(892 * easyEmgMicrovoltsPerCount));
+      expect(emg.displayMin, lessThan(-892 * easyEmgMicrovoltsPerCount));
+      expect(env.displayMin, 0);
+      expect(env.displayMax, greaterThan(257 * easyEmgMicrovoltsPerCount));
     });
   });
 

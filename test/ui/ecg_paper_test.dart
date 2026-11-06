@@ -89,12 +89,25 @@ void main() {
     });
 
     test('boards with no verified mV scale stay on auto', () {
-      for (final id in ['ads1292r', 'max30001', 'healthypi', 'easyemg']) {
+      for (final id in ['ads1292r', 'max30001', 'healthypi']) {
         final chart = _chartFor(id);
 
         expect(chart.hasPaperScale, isFalse, reason: id);
         expect(chart.paperMode, isFalse, reason: id);
         expect(chart.strip(chart.channels.first.id).yMode, YMode.auto);
+      }
+    });
+
+    test('fixed-range channels start on their display range, not paper', () {
+      final chart = _chartFor('easyemg');
+
+      expect(chart.hasPaperScale, isFalse);
+      expect(chart.paperMode, isFalse);
+      for (final c in chart.channels) {
+        final s = chart.strip(c.id);
+        expect(s.yMode, YMode.manual, reason: c.id);
+        expect(s.yMin, c.displayMin, reason: c.id);
+        expect(s.yMax, c.displayMax, reason: c.id);
       }
     });
   });

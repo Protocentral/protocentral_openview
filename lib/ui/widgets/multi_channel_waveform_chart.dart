@@ -303,6 +303,10 @@ class _WaveformPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (size.width < 2 || size.height < 2) return;
 
+    // A fixed Y range (manual or paper) can hold values past its edges. Keep
+    // them inside this strip rather than drawing over its neighbours.
+    canvas.clipRect(Offset.zero & size);
+
     final samples = _scratch.putIfAbsent(
         visibleSamples, () => Float64List(visibleSamples));
 
