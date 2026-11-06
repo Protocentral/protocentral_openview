@@ -66,7 +66,9 @@ class SignalColors extends ThemeExtension<SignalColors> {
     qualityWarn: Color(0xFFFB923C),
     qualityBad: Color(0xFFF87171),
     gridLine: Color(0xFF3A444A),
-    ecgGrid: Color(0xFF6B3A3F),
+    // A step above gridLine so the paper's boxes stay measurable, but neutral
+    // so it doesn't compete with the trace.
+    ecgGrid: Color(0xFF4B565C),
     axisLabel: Color(0xFF8C9498),
     cursor: Color(0xFFFBBF24),
   );
@@ -88,7 +90,7 @@ class SignalColors extends ThemeExtension<SignalColors> {
     qualityWarn: Color(0xFFEA580C),
     qualityBad: Color(0xFFDC2626),
     gridLine: Color(0xFFE7EAEC),
-    ecgGrid: Color(0xFFF0B4B4),
+    ecgGrid: Color(0xFFD3D8DB),
     axisLabel: Color(0xFF5A6266),
     cursor: Color(0xFFB45309),
   );
