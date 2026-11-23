@@ -73,13 +73,8 @@ Download the zip for your OS from the [Releases](https://github.com/Protocentral
 page, extract it, and run the app. Verify the download against `SHA256SUMS.txt`
 if you like.
 
-The macOS build is ad-hoc signed, not notarized, so the first launch is blocked
-with *"Apple cannot check it for malicious software"*. Right-click the app and
-choose **Open**, or clear the quarantine flag:
-
-```sh
-xattr -dr com.apple.quarantine OpenView.app
-```
+The macOS build is signed with Developer ID and notarized by Apple, so it can be
+opened normally after extraction.
 
 ### Mobile
 
