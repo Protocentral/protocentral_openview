@@ -95,12 +95,15 @@ the session; **Skip this version** in the dialog suppresses it for good.
 The standard answer for desktop Flutter is
 [`auto_updater`](https://pub.dev/packages/auto_updater), which wraps **Sparkle**
 (macOS) and **WinSparkle** (Windows) and consumes an `appcast.xml` published
-alongside the release. Its prerequisites are not met today:
+alongside the release. Some prerequisites are still missing:
 
-1. **macOS must be Developer ID signed and notarized.** The macOS job currently
-   ad-hoc signs (`CODE_SIGN_IDENTITY=-`), which is also why Gatekeeper warns on
-   first launch. Sparkle cannot install an update over an ad-hoc-signed app.
-   The `AC_CERTIFICATE` / `APPLE_*` secrets for this already exist in the repo.
+1. **macOS signing and notarization are in place.** The release workflow signs
+   with Developer ID, submits the app to Apple's notary service, and staples the
+   ticket before packaging. Sparkle's remaining prerequisite is a signed
+   installer/update feed; this step alone does not add auto-updates.
+   The workflow requires `AC_CERTIFICATE` (base64-encoded Developer ID `.p12`),
+   `AC_CERTIFICATE_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_ID`, and
+   `APPLE_APP_SPECIFIC_PASSWORD` repository secrets.
 2. **Windows needs an installer** (MSIX or Inno Setup), not a zip — WinSparkle
    updates by running one. Without an OV/EV code-signing cert, SmartScreen will
    flag every build.

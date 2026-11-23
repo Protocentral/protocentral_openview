@@ -8,7 +8,7 @@
 #   OpenView-linux-x64.zip
 #   OpenView-linux-arm64.zip
 #   OpenView-windows-x64.zip
-#   OpenView-macos-universal.zip   (Intel + Apple Silicon; ad-hoc signed — see the macOS job)
+#   OpenView-macos-universal.zip   (Intel + Apple Silicon; Developer ID signed and notarized)
 #   SHA256SUMS.txt
 #
 # Desktop only. Mobile ships through the App Store and Google Play, and the
@@ -218,17 +218,10 @@ jobs:
           if-no-files-found: error
 
   # ── macOS desktop ──────────────────────────────────────────────────────
-  # The Xcode project uses Automatic signing with a DEVELOPMENT_TEAM, so a plain
-  # `flutter build macos` on a runner fails ("No signing certificate 'Mac
-  # Development' found"). We therefore configure with Flutter and build with
-  # xcodebuild, overriding the signing settings on the command line (command-line
-  # settings outrank the ones baked into project.pbxproj).
-  #
-  # The app is ad-hoc signed: it runs, but it is not notarized, so Gatekeeper
-  # shows "Apple cannot check it for malicious software" on first launch and the
-  # user must right-click → Open (or clear the quarantine bit). Developer ID
-  # signing + notarization is a follow-up — the AC_CERTIFICATE / APPLE_* secrets
-  # for it already exist in this repo.
+  # The Xcode project uses Automatic signing with a DEVELOPMENT_TEAM, so the
+  # runner imports the Developer ID certificate into a temporary keychain and
+  # overrides signing settings on the xcodebuild command line. The signed app is
+  # submitted to Apple's notary service, stapled, then packaged for release.
   #
   # Built as a universal binary (x86_64 + arm64) so a single download runs on
   # both Intel and Apple Silicon Macs. The deployment target is 12.0, so Intel
@@ -251,6 +244,47 @@ jobs:
 
       - name: Install build tools (libserialport)
         run: brew install automake libtool
+
+      - name: Import Developer ID certificate
+        env:
+          AC_CERTIFICATE: ${{ secrets.AC_CERTIFICATE }}
+          AC_CERTIFICATE_PASSWORD: ${{ secrets.AC_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$AC_CERTIFICATE" ] || [ -z "$AC_CERTIFICATE_PASSWORD" ] || \
+             [ -z "$APPLE_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ] || \
+             [ -z "$APPLE_TEAM_ID" ]; then
+            echo "::error::Set AC_CERTIFICATE (base64-encoded .p12), AC_CERTIFICATE_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID repository secrets."
+            exit 1
+          fi
+
+          keychain="$RUNNER_TEMP/build.keychain-db"
+          certificate="$RUNNER_TEMP/developer-id.p12"
+          keychain_password="$(openssl rand -hex 32)"
+
+          printf '%s' "$AC_CERTIFICATE" | base64 -D > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" \
+            -P "$AC_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -k "$keychain"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain"
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          rm "$certificate"
+
+          if ! security find-identity -v -p codesigning "$keychain" \
+            | grep 'Developer ID Application:' >/dev/null; then
+            echo "::error::AC_CERTIFICATE must contain a Developer ID Application certificate."
+            exit 1
+          fi
 
       - name: Flutter config & deps
         run: |
@@ -275,9 +309,31 @@ jobs:
             ARCHS="x86_64 arm64" \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY=- \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            ENABLE_HARDENED_RUNTIME=YES \
+            OTHER_CODE_SIGN_FLAGS=--timestamp \
             PROVISIONING_PROFILE_SPECIFIER= \
             build
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Notarize macOS app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          app="$RUNNER_TEMP/dd/Build/Products/Release/OpenView.app"
+          submission="$RUNNER_TEMP/OpenView-notarization.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$submission"
+          xcrun notarytool submit "$submission" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$app"
+          xcrun stapler validate "$app"
 
       - name: Package
         run: |
@@ -296,7 +352,8 @@ jobs:
               *) echo "::error::macOS binary is missing the $want slice ($archs)"; exit 1 ;;
             esac
           done
-          codesign --verify --strict --verbose=2 "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          # Package only after stapling so the ticket is included with the app.
           # ditto (not zip) preserves app-bundle metadata and symlinks.
           ditto -c -k --sequesterRsrc --keepParent "$app" OpenView-macos-universal.zip
 
